@@ -1,0 +1,9 @@
+
+{
+  "name": "3 Afghan App",
+  "description": "A comprehensive real estate, jobs, and services application for Afghanistan.",
+  "requestFramePermissions": [
+    "geolocation",
+    "camera"
+  ]
+}
