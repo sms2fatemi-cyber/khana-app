@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Search, User, Briefcase, Building2, Wrench, Plus, List, Globe, Bookmark } from 'lucide-react';
+import { Search, User, Briefcase, Building2, Wrench, Plus, List, Globe, Map as MapIcon } from 'lucide-react';
 import MapView from './components/MapView';
 import PropertyCard from './components/PropertyCard';
 import PropertyDetails from './components/PropertyDetails';
@@ -29,7 +29,7 @@ function App() {
   const [activeDealFilter, setActiveDealFilter] = useState<'ALL' | DealType>('ALL');
   const [visitedIds, setVisitedIds] = useState<Set<string>>(new Set());
 
-  // پاکسازی وضعیت هنگام تغییر بخش برای جلوگیری از کرش
+  // Clean state when mode changes
   useEffect(() => {
     setSelectedItem(null);
     setIsDetailOpen(false);
@@ -59,10 +59,6 @@ function App() {
     setSelectedItem(item);
     setIsDetailOpen(false);
     setViewMode('map');
-    // For small screens, ensure we really switch the mode
-    if (window.innerWidth < 768) {
-      setViewMode('map');
-    }
   };
 
   const renderCard = (item: any) => {
@@ -97,7 +93,7 @@ function App() {
 
   return (
     <div className="flex flex-col h-screen bg-[#F8F9FA] font-[Vazirmatn] overflow-hidden select-none" dir="rtl">
-      {/* هدر ثابت */}
+      {/* Header */}
       <header className="h-[75px] bg-white border-b flex items-center justify-between px-6 z-[3000] shrink-0 shadow-sm">
         <div className="flex items-center gap-3">
           <button onClick={() => setShowAddModal(true)} className="bg-[#a62626] text-white px-7 py-2.5 rounded-xl font-black text-sm shadow-lg shadow-red-900/20 active:scale-95 transition-all">{t.add_post}</button>
@@ -111,56 +107,66 @@ function App() {
       </header>
 
       <main className="flex-1 flex overflow-hidden relative">
-        {/* سایدبار لیست */}
-        <div className={`w-full md:w-[420px] lg:w-[460px] h-full flex flex-col bg-transparent z-20 shrink-0 border-l border-gray-100 ${viewMode === 'map' ? 'hidden md:flex' : 'flex'}`}>
-          <div className="p-5 space-y-4 shrink-0">
-            <div className="bg-white p-5 rounded-[2.2rem] shadow-sm space-y-4 border border-gray-50">
+        {/* List Content */}
+        <div className={`w-full md:w-[420px] lg:w-[460px] h-full flex flex-col bg-white z-20 shrink-0 border-l border-gray-100 transition-all ${viewMode === 'map' ? 'hidden md:flex' : 'flex'}`}>
+          <div className="p-5 space-y-4 shrink-0 bg-gray-50">
+            <div className="bg-white p-5 rounded-[2.2rem] shadow-sm space-y-4 border border-gray-100">
               <div className="relative">
                 <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-300" size={20} />
                 <input type="text" placeholder={appMode === 'ESTATE' ? t.search_estate : appMode === 'JOBS' ? t.search_jobs : t.search_services} className="w-full bg-[#F3F4F6] border-none rounded-2xl pr-12 pl-4 py-3.5 text-sm font-bold outline-none focus:ring-2 focus:ring-[#a62626]/10 transition-all" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
               </div>
               {appMode === 'ESTATE' && (
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex bg-[#F3F4F6] p-1.5 rounded-2xl flex-1 overflow-hidden">
-                    <button onClick={() => setActiveDealFilter('ALL')} className={`flex-1 py-2 rounded-xl text-[10px] font-black transition-all ${activeDealFilter === 'ALL' ? 'bg-gray-800 text-white shadow-md' : 'text-gray-400'}`}>{t.all}</button>
-                    <button onClick={() => setActiveDealFilter(DealType.SALE)} className={`flex-1 py-2 rounded-xl text-[10px] font-black transition-all ${activeDealFilter === DealType.SALE ? 'bg-gray-800 text-white shadow-md' : 'text-gray-400'}`}>{t.sale}</button>
-                    <button onClick={() => setActiveDealFilter(DealType.RENT)} className={`flex-1 py-2 rounded-xl text-[10px] font-black transition-all ${activeDealFilter === DealType.RENT ? 'bg-gray-800 text-white shadow-md' : 'text-gray-400'}`}>{t.rent}</button>
-                    <button onClick={() => setActiveDealFilter(DealType.MORTGAGE)} className={`flex-1 py-2 rounded-xl text-[10px] font-black transition-all ${activeDealFilter === DealType.MORTGAGE ? 'bg-gray-800 text-white shadow-md' : 'text-gray-400'}`}>{t.mortgage}</button>
-                  </div>
-                  <button onClick={() => setViewMode('map')} className="md:hidden bg-[#F3F4F6] p-3 rounded-xl text-[#a62626]"><List size={18} /></button>
+                <div className="flex bg-[#F3F4F6] p-1.5 rounded-2xl">
+                  <button onClick={() => setActiveDealFilter('ALL')} className={`flex-1 py-2 rounded-xl text-[10px] font-black transition-all ${activeDealFilter === 'ALL' ? 'bg-gray-800 text-white shadow-md' : 'text-gray-400'}`}>{t.all}</button>
+                  <button onClick={() => setActiveDealFilter(DealType.SALE)} className={`flex-1 py-2 rounded-xl text-[10px] font-black transition-all ${activeDealFilter === DealType.SALE ? 'bg-gray-800 text-white shadow-md' : 'text-gray-400'}`}>{t.sale}</button>
+                  <button onClick={() => setActiveDealFilter(DealType.RENT)} className={`flex-1 py-2 rounded-xl text-[10px] font-black transition-all ${activeDealFilter === DealType.RENT ? 'bg-gray-800 text-white shadow-md' : 'text-gray-400'}`}>{t.rent}</button>
+                  <button onClick={() => setActiveDealFilter(DealType.MORTGAGE)} className={`flex-1 py-2 rounded-xl text-[10px] font-black transition-all ${activeDealFilter === DealType.MORTGAGE ? 'bg-gray-800 text-white shadow-md' : 'text-gray-400'}`}>{t.mortgage}</button>
                 </div>
               )}
-              <div className="flex gap-2">
-                <button className="flex-1 bg-[#F3F4F6] text-gray-500 py-3 rounded-xl font-black text-xs">همه ولایات</button>
-                <button className="flex-1 bg-[#F3F4F6] text-gray-500 py-3 rounded-xl font-black text-xs flex items-center justify-center gap-2"><Bookmark size={14} /> {t.saved}</button>
-              </div>
             </div>
           </div>
           
-          {/* بخش اسکرول‌شونده اصلی */}
-          <div className="flex-1 overflow-y-auto px-5 pb-32 no-scrollbar space-y-4">
+          <div className="flex-1 overflow-y-auto px-5 pb-32 no-scrollbar space-y-4 pt-4">
             {filteredItems.map(item => renderCard(item))}
             {filteredItems.length === 0 && <div className="text-center py-20 bg-white rounded-[2rem] border-2 border-dashed border-gray-100 mx-2"><p className="text-gray-400 font-bold">{t.no_results}</p></div>}
           </div>
         </div>
 
-        {/* بخش نقشه */}
-        <div className={`flex-1 relative ${viewMode === 'list' ? 'hidden md:block' : 'block w-full h-full'}`}>
-          <MapView items={filteredItems} selectedItem={selectedItem} onSelectItem={handleSelectItem} mode={appMode} visitedIds={visitedIds} />
-          {viewMode === 'map' && (
-            <button onClick={() => setViewMode('list')} className="md:hidden absolute top-6 right-6 z-[3000] bg-white p-4 rounded-2xl shadow-2xl text-[#a62626] border border-gray-100"><List size={24} /></button>
-          )}
+        {/* Map Content */}
+        <div className={`flex-1 h-full relative ${viewMode === 'list' ? 'hidden md:block' : 'block'}`}>
+          <MapView 
+            items={filteredItems} 
+            selectedItem={selectedItem} 
+            onSelectItem={handleSelectItem} 
+            mode={appMode} 
+            visitedIds={visitedIds} 
+          />
         </div>
 
-        {/* ناوبری پایین */}
+        {/* Floating Toggle Button for Mobile - Explicitly centered and clickable */}
+        <div className="md:hidden fixed bottom-28 left-0 right-0 flex justify-center z-[5000] pointer-events-none">
+          <button 
+            onClick={() => setViewMode(viewMode === 'list' ? 'map' : 'list')}
+            className="bg-gray-900 text-white px-8 py-4 rounded-full font-black text-sm flex items-center gap-3 shadow-2xl active:scale-95 transition-all pointer-events-auto border-2 border-white/20"
+          >
+            {viewMode === 'list' ? (
+              <><MapIcon size={22} /> <span>{t.map}</span></>
+            ) : (
+              <><List size={22} /> <span>{t.list}</span></>
+            )}
+          </button>
+        </div>
+
+        {/* Bottom Navigation */}
         <div className="fixed bottom-0 left-0 right-0 h-[85px] bg-white border-t flex items-center justify-around z-[4000] px-4 shadow-[0_-5px_30px_rgba(0,0,0,0.08)]">
-          <button onClick={() => setAppMode('ESTATE')} className={`flex flex-col items-center gap-1.5 flex-1 ${appMode === 'ESTATE' ? 'text-[#a62626]' : 'text-gray-300'}`}><Building2 size={26} /><span className="text-[11px] font-black">{t.estate}</span></button>
-          <button onClick={() => setAppMode('JOBS')} className={`flex flex-col items-center gap-1.5 flex-1 ${appMode === 'JOBS' ? 'text-[#a62626]' : 'text-gray-300'}`}><Briefcase size={26} /><span className="text-[11px] font-black">{t.jobs}</span></button>
+          <button onClick={() => { setAppMode('ESTATE'); if(viewMode==='map') setViewMode('list'); }} className={`flex flex-col items-center gap-1.5 flex-1 ${appMode === 'ESTATE' ? 'text-[#a62626]' : 'text-gray-300'}`}><Building2 size={26} /><span className="text-[11px] font-black">{t.estate}</span></button>
+          <button onClick={() => { setAppMode('JOBS'); if(viewMode==='map') setViewMode('list'); }} className={`flex flex-col items-center gap-1.5 flex-1 ${appMode === 'JOBS' ? 'text-[#a62626]' : 'text-gray-300'}`}><Briefcase size={26} /><span className="text-[11px] font-black">{t.jobs}</span></button>
           <div className="relative -top-7"><button onClick={() => setShowAddModal(true)} className="w-16 h-16 bg-[#a62626] text-white rounded-[1.8rem] flex items-center justify-center shadow-2xl shadow-red-900/40 active:scale-90 transition-all border-4 border-white"><Plus size={32} strokeWidth={3} /></button></div>
-          <button onClick={() => setAppMode('SERVICES')} className={`flex flex-col items-center gap-1.5 flex-1 ${appMode === 'SERVICES' ? 'text-[#a62626]' : 'text-gray-300'}`}><Wrench size={26} /><span className="text-[11px] font-black">{t.services}</span></button>
+          <button onClick={() => { setAppMode('SERVICES'); if(viewMode==='map') setViewMode('list'); }} className={`flex flex-col items-center gap-1.5 flex-1 ${appMode === 'SERVICES' ? 'text-[#a62626]' : 'text-gray-300'}`}><Wrench size={26} /><span className="text-[11px] font-black">{t.services}</span></button>
           <button onClick={() => setShowAuthModal(true)} className="flex flex-col items-center gap-1.5 flex-1 text-gray-300"><User size={26} /><span className="text-[11px] font-black">{t.account}</span></button>
         </div>
       </main>
+
       {renderDetails()}
       {renderAddModal()}
       {showAuthModal && <AuthModal onClose={() => setShowAuthModal(false)} lang={lang} onShowMyAds={() => {}} onShowSaved={() => {}} />}

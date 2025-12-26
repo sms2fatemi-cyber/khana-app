@@ -9,8 +9,10 @@ export interface Location {
 export enum PropertyType {
   APARTMENT = 'آپارتمان',
   HOUSE = 'حویلی',
+  HOME = 'خانه',
   LAND = 'زمین',
-  COMMERCIAL = 'تجارتی'
+  COMMERCIAL = 'تجاری',
+  SHOP = 'دکان'
 }
 
 export enum DealType {

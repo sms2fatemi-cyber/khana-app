@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Check, MapPin, ChevronRight, Crosshair, Loader2, Camera, Trash2, Smartphone } from 'lucide-react';
 import { JobType } from '../types';
@@ -13,9 +12,14 @@ interface AddJobModalProps {
 const MapController = ({ center }: { center: {lat: number, lng: number} }) => {
   const map = useMap();
   useEffect(() => {
+    // Sequential resizes to fix the "Gray Map" issue
+    map.invalidateSize();
+    const timers = [100, 400, 800].map(ms => setTimeout(() => map.invalidateSize(), ms));
+    
     if (center && center.lat !== 0) {
       map.flyTo([center.lat, center.lng], 16, { animate: true, duration: 1.5 });
     }
+    return () => timers.forEach(clearTimeout);
   }, [center, map]);
   return null;
 };
@@ -65,7 +69,6 @@ const AddJobModal: React.FC<AddJobModalProps> = ({ onClose, t }) => {
 
   const handleLocateMe = (e: React.MouseEvent) => {
     e.preventDefault();
-    e.stopPropagation();
     if (!navigator.geolocation) return;
 
     setIsLocating(true);
@@ -79,8 +82,7 @@ const AddJobModal: React.FC<AddJobModalProps> = ({ onClose, t }) => {
       () => {
         setIsLocating(false);
         alert("دریافت موقعیت با خطا مواجه شد.");
-      },
-      { enableHighAccuracy: true, timeout: 10000 }
+      }
     );
   };
 
@@ -130,25 +132,25 @@ const AddJobModal: React.FC<AddJobModalProps> = ({ onClose, t }) => {
       <div className="bg-white w-full h-full md:h-auto md:max-h-[90vh] md:max-w-xl md:rounded-[2.5rem] flex flex-col overflow-hidden shadow-2xl relative" onClick={e => e.stopPropagation()}>
         
         {view === 'map' && (
-          <div className="absolute inset-0 z-[110] flex flex-col bg-white">
+          <div className="absolute inset-0 z-[110] flex flex-col bg-white animate-in fade-in duration-300">
             <div className="h-16 flex items-center px-6 border-b shrink-0 bg-white shadow-sm">
               <button onClick={() => setView('form')} className="p-2 -mr-2"><ChevronRight size={32} /></button>
               <h2 className="font-black text-lg mr-2">محل شرکت روی نقشه</h2>
             </div>
-            <div className="flex-1 relative">
+            <div className="flex-1 relative bg-gray-100">
               <MapContainer center={[tempLocation.lat, tempLocation.lng]} zoom={14} style={{ height: '100%', width: '100%' }} zoomControl={false}>
                 <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
                 <MapController center={mapTarget} />
                 <MapEventsHandler onMove={(lat, lng) => setTempLocation({ lat, lng })} />
               </MapContainer>
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-full z-[1000] pointer-events-none pb-4">
-                <MapPin size={48} className="text-blue-600 drop-shadow-2xl" />
+                <MapPin size={48} className="text-blue-600 drop-shadow-2xl animate-bounce" />
               </div>
               
               <button 
                 onClick={handleLocateMe}
                 disabled={isLocating}
-                className={`absolute bottom-32 left-6 p-4 rounded-2xl shadow-2xl z-[1000] border border-gray-100 flex items-center justify-center ${isLocating ? 'bg-gray-100 text-gray-400' : 'bg-white text-blue-600 active:scale-90'}`}
+                className="absolute bottom-32 right-6 p-4 bg-white text-blue-600 rounded-2xl shadow-2xl z-[1000] border border-gray-100 flex items-center justify-center active:scale-90"
               >
                 {isLocating ? <Loader2 size={28} className="animate-spin" /> : <Crosshair size={28} />}
               </button>
