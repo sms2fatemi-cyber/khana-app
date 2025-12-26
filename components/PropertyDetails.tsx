@@ -1,7 +1,6 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Property, ChatMessage } from '../types';
-import { X, MessageSquare, Sparkles, Send, Bookmark, ChevronRight, Phone, ChevronLeft, MapPinned, Share2, Copy, Check } from 'lucide-react';
+import { Sparkles, Send, Bookmark, ChevronRight, Phone, ChevronLeft, MapPinned, Share2 } from 'lucide-react';
 import { consultAI } from '../services/geminiService';
 
 interface PropertyDetailsProps {
@@ -14,12 +13,11 @@ interface PropertyDetailsProps {
 }
 
 const PropertyDetails: React.FC<PropertyDetailsProps> = ({ property, onClose, onShowOnMap, isSaved, onToggleSave, t }) => {
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([{ role: 'model', text: 'سلام! هر سوالی درباره این ملک داری از من بپرس.' }]);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([{ role: 'model', text: 'سلام! من مشاور هوشمند دیوار هستم. چه سوالی درباره این ملک دارید؟' }]);
   const [inputMessage, setInputMessage] = useState('');
   const [isThinking, setIsThinking] = useState(false);
   const [showContact, setShowContact] = useState(false);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
-  const [isCopied, setIsCopied] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const allImages = property.images?.length ? property.images : [`https://picsum.photos/seed/${property.id}/800/600`];
@@ -37,145 +35,151 @@ const PropertyDetails: React.FC<PropertyDetailsProps> = ({ property, onClose, on
     setChatMessages(prev => [...prev, { role: 'model', text: aiResponse }]);
   };
 
-  const handleShare = () => {
-    const url = window.location.href;
-    navigator.clipboard.writeText(url).then(() => {
-      setIsCopied(true);
-      setTimeout(() => setIsCopied(false), 2000);
-    });
+  const handleMapAction = () => {
+    if (onShowOnMap) {
+      onShowOnMap();
+      onClose();
+    }
+  };
+
+  const nextImage = () => {
+    setActiveImageIndex((prev) => (prev + 1) % allImages.length);
+  };
+
+  const prevImage = () => {
+    setActiveImageIndex((prev) => (prev - 1 + allImages.length) % allImages.length);
   };
 
   return (
-    <div className="fixed inset-0 z-[10000] bg-white flex flex-col md:flex-row overflow-hidden font-[Vazirmatn]" dir="rtl">
-      
-      {/* هدر موبایل */}
-      <div className="md:hidden h-16 border-b flex items-center px-5 justify-between bg-white shrink-0">
-        <button onClick={onClose} className="p-2 -mr-2"><ChevronRight size={32} /></button>
-        <span className="font-bold text-lg truncate max-w-[150px]">{property.title}</span>
-        <div className="flex gap-1">
-          <button onClick={handleShare} className="p-2 text-gray-400">
-            {isCopied ? <Check size={24} className="text-green-500" /> : <Share2 size={24} />}
-          </button>
-          <button onClick={(e) => { e.stopPropagation(); onToggleSave(); }} className="p-2">
-             <Bookmark size={28} className={isSaved ? "fill-[#a62626] text-[#a62626]" : "text-gray-400"} />
+    <div className="fixed inset-0 z-[10000] bg-white flex flex-col overflow-hidden font-[Vazirmatn]" dir="rtl">
+      {/* هدر */}
+      <div className="h-14 border-b flex items-center px-4 justify-between bg-white shrink-0 z-10">
+        <div className="flex items-center gap-2">
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors"><ChevronRight size={28} className="text-gray-700" /></button>
+        </div>
+        <div className="flex gap-2">
+          <button className="p-2 text-gray-600 hover:bg-gray-100 rounded-full"><Share2 size={22} /></button>
+          <button onClick={onToggleSave} className="p-2 hover:bg-gray-100 rounded-full">
+             <Bookmark size={22} className={isSaved ? "fill-[#a62626] text-[#a62626]" : "text-gray-600"} />
           </button>
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col md:flex-row-reverse overflow-hidden h-full">
-        {/* تصویر ملک */}
-        <div className="w-full md:w-[70%] h-[45vh] md:h-full bg-black shrink-0 relative shadow-2xl">
-          <img src={allImages[activeImageIndex]} alt={property.title} className="w-full h-full object-contain" key={activeImageIndex} />
+      <div className="flex-1 overflow-y-auto no-scrollbar pb-24">
+        <div className="w-full aspect-[16/9] md:aspect-[2/1] bg-gray-100 relative group">
+          <img src={allImages[activeImageIndex]} alt={property.title} className="w-full h-full object-cover transition-opacity duration-500" />
+          
           {allImages.length > 1 && (
-            <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex justify-between px-6 pointer-events-none">
-              <button onClick={() => setActiveImageIndex(p => (p > 0 ? p - 1 : allImages.length - 1))} className="p-3 bg-black/50 rounded-full text-white pointer-events-auto backdrop-blur-md shadow-2xl hover:bg-black/80 transition-all"><ChevronLeft size={32} /></button>
-              <button onClick={() => setActiveImageIndex(p => (p < allImages.length - 1 ? p + 1 : 0))} className="p-3 bg-black/50 rounded-full text-white pointer-events-auto backdrop-blur-md shadow-2xl hover:bg-black/80 transition-all"><ChevronRight size={32} /></button>
-            </div>
+            <>
+              <button 
+                onClick={prevImage}
+                className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white p-2 rounded-full backdrop-blur-sm transition-all"
+              >
+                <ChevronRight size={24} className="rotate-180" />
+              </button>
+              <button 
+                onClick={nextImage}
+                className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white p-2 rounded-full backdrop-blur-sm transition-all"
+              >
+                <ChevronRight size={24} />
+              </button>
+            </>
           )}
-          <div className="hidden md:flex absolute top-10 left-10 gap-4 z-10">
-            <button onClick={handleShare} className="p-4 bg-white/10 backdrop-blur-xl text-white rounded-2xl border border-white/20 hover:bg-white/30 transition-all shadow-2xl">
-              {isCopied ? <Check size={32} className="text-green-400" /> : <Copy size={32} />}
-            </button>
-            <button onClick={onToggleSave} className="p-4 bg-white/10 backdrop-blur-xl text-white rounded-2xl border border-white/20 hover:bg-white/30 transition-all shadow-2xl"><Bookmark size={32} className={isSaved ? "fill-white" : ""} /></button>
-            <button onClick={onClose} className="p-4 bg-white/10 backdrop-blur-xl text-white rounded-2xl border border-white/20 hover:bg-white/30 transition-all shadow-2xl"><X size={32} /></button>
+
+          <div className="absolute bottom-4 right-4 bg-black/60 text-white px-4 py-1.5 rounded-full text-xs font-black backdrop-blur-md">
+            {activeImageIndex + 1} از {allImages.length}
           </div>
         </div>
 
-        {/* ستون اطلاعات */}
-        <div className="flex-1 md:w-[30%] overflow-y-auto no-scrollbar bg-white flex flex-col h-full border-r shadow-2xl">
-          <div className="p-8 space-y-8">
-            <div>
-              <div className="flex justify-between items-start mb-2">
-                 <h1 className="text-3xl font-black text-gray-900 leading-snug">{property.title}</h1>
-              </div>
-              <p className="text-gray-400 text-sm font-bold">{property.date} در {property.city}</p>
-              
-              <div className="mt-6 grid grid-cols-2 gap-6 border-y py-6">
-                <div className="flex flex-col">
-                  <span className="text-sm text-gray-400 font-bold mb-2">قیمت کل</span>
-                  <span className="text-2xl font-black text-[#a62626]">{property.price.toLocaleString()} <small className="text-sm">افغانی</small></span>
-                  <span className="text-[10px] text-gray-400 font-bold mt-1">مطابق نرخ روز</span>
-                </div>
-                <div className="flex flex-col border-r pr-6">
-                  <span className="text-sm text-gray-400 font-bold mb-2">نوع معامله</span>
-                  <span className="text-lg font-black">{property.dealType}</span>
-                </div>
-              </div>
-            </div>
+        <div className="p-5 md:p-8 space-y-6 max-w-4xl mx-auto">
+          <div>
+            <h1 className="text-2xl font-black text-gray-900 leading-tight mb-3">{property.title}</h1>
+            <p className="text-gray-400 text-sm font-bold flex items-center gap-2">
+              <span>{property.date} در {property.city}</span>
+            </p>
+          </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-gray-50 p-5 rounded-2xl border border-gray-100 flex items-center justify-between shadow-sm">
-                <span className="text-sm text-gray-500 font-bold">مساحت</span>
-                <span className="font-black text-lg">{property.area} متر</span>
-              </div>
-              <div className="bg-gray-50 p-5 rounded-2xl border border-gray-100 flex items-center justify-between shadow-sm">
-                <span className="text-sm text-gray-500 font-bold">اتاق</span>
-                <span className="font-black text-lg">{property.bedrooms}</span>
-              </div>
-            </div>
+          <hr className="border-gray-100" />
 
-            <button onClick={onShowOnMap} className="w-full bg-gray-50 border-2 border-gray-200 rounded-[1.5rem] p-5 flex items-center justify-center gap-3 hover:bg-red-50 hover:border-red-200 transition-all shadow-sm group">
-              <MapPinned size={32} className="text-[#a62626] group-hover:scale-110 transition-transform" />
-              <span className="font-black text-base text-gray-700">مشاهده دقیق روی نقشه</span>
+          <div className="grid grid-cols-3 gap-4 py-4 text-center">
+            <div className="flex flex-col gap-1">
+              <span className="text-gray-400 text-xs font-bold">{t.area}</span>
+              <span className="font-black text-base">{property.area} متر</span>
+            </div>
+            <div className="flex flex-col gap-1 border-x border-gray-100">
+              <span className="text-gray-400 text-xs font-bold">{t.bedrooms}</span>
+              <span className="font-black text-base">{property.bedrooms} اتاق</span>
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-gray-400 text-xs font-bold">{t.type}</span>
+              <span className="font-black text-base">{property.type}</span>
+            </div>
+          </div>
+
+          <hr className="border-gray-100" />
+
+          <div>
+            <button 
+              onClick={handleMapAction} 
+              className="w-full flex items-center justify-between py-4 px-4 bg-gray-50 rounded-2xl hover:bg-gray-100 transition-all group"
+            >
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-white rounded-xl shadow-sm text-[#a62626] group-hover:scale-110 transition-transform">
+                  <MapPinned size={24} />
+                </div>
+                <div className="text-right">
+                  <span className="block text-sm font-black text-gray-800">{t.select_location}</span>
+                  <span className="text-[11px] text-gray-400 font-bold">{property.address || property.city}</span>
+                </div>
+              </div>
+              <ChevronLeft size={20} className="text-gray-300" />
             </button>
+          </div>
 
-            <div>
-              <h3 className="font-black text-xl text-gray-900 mb-4 underline decoration-[#a62626]/20 decoration-8 underline-offset-[-2px]">توضیحات تکمیلی</h3>
-              <p className="text-gray-600 leading-9 text-lg text-justify whitespace-pre-wrap">{property.description}</p>
-            </div>
+          <hr className="border-gray-100" />
 
-            {/* بخش مشاور هوشمند (AI) */}
-            <div className="bg-indigo-50/70 rounded-[2.5rem] p-6 border border-indigo-100 shadow-inner">
-               <div className="flex items-center gap-3 mb-5">
-                 <div className="p-2.5 bg-indigo-600 rounded-2xl text-white shadow-lg shadow-indigo-200"><Sparkles size={24} /></div>
-                 <h3 className="font-black text-indigo-900 text-base">{t.ai_consultant}</h3>
+          <div>
+            <h3 className="font-black text-lg text-gray-900 mb-4">{t.description}</h3>
+            <p className="text-gray-600 leading-8 text-[15px] text-justify whitespace-pre-wrap font-medium">{property.description}</p>
+          </div>
+
+          <div className="bg-[#a62626]/5 rounded-3xl p-6 border border-[#a62626]/10 shadow-sm">
+             <div className="flex items-center gap-3 mb-5">
+               <div className="p-2 bg-[#a62626] text-white rounded-xl shadow-lg">
+                 <Sparkles size={20} />
                </div>
-               <div className="space-y-4 mb-5 max-h-[220px] overflow-y-auto no-scrollbar">
-                  {chatMessages.map((msg, i) => (
-                    <div key={i} className={`p-4.5 rounded-2xl text-sm font-bold leading-7 shadow-sm ${msg.role === 'user' ? 'bg-indigo-600 text-white mr-10 shadow-indigo-200' : 'bg-white text-gray-800 ml-10 border border-indigo-50'}`}>{msg.text}</div>
-                  ))}
-                  {isThinking && <div className="text-xs text-indigo-400 animate-pulse px-4 font-black">در حال تحلیل داده‌ها...</div>}
-                  <div ref={chatEndRef} />
-               </div>
-               <div className="flex gap-3">
-                 <input type="text" value={inputMessage} onChange={(e) => setInputMessage(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} placeholder="سوالی داری؟ بپرس..." className="flex-1 bg-white border border-indigo-200 rounded-2xl px-5 py-4 text-base outline-none font-bold focus:ring-4 focus:ring-indigo-500/10 transition-all" />
-                 <button onClick={handleSendMessage} className="bg-indigo-600 text-white p-4 rounded-2xl hover:bg-indigo-700 transition-colors shadow-xl shadow-indigo-200"><Send size={24} /></button>
-               </div>
-            </div>
-
-            {/* دکمه‌های تماس فقط در حالت دسکتاپ */}
-            <div className="hidden md:flex flex-col gap-4 pt-4">
-               <button onClick={() => setShowContact(!showContact)} className="w-full bg-[#a62626] text-white py-5.5 rounded-[1.8rem] font-black text-xl flex items-center justify-center gap-3 shadow-2xl shadow-red-900/20 active:scale-95 transition-all">
-                 <Phone size={32} /> {showContact ? (property.phoneNumber || "۰۷۰۰۱۱۲۲۳۳") : "تماس مستقیم با مالک"}
-               </button>
-               <button className="w-full border-2 border-gray-100 text-gray-700 py-5.5 rounded-[1.8rem] font-black text-xl flex items-center justify-center gap-3 hover:bg-gray-50 transition-all shadow-sm">
-                 <MessageSquare size={32} /> شروع گفتگو در چت
-               </button>
-            </div>
-
-            <div className="h-28"></div> 
+               <h3 className="font-black text-[#a62626] text-[16px]">{t.ai_consultant}</h3>
+             </div>
+             <div className="max-h-[200px] overflow-y-auto no-scrollbar mb-4 space-y-3">
+                {chatMessages.map((msg, i) => (
+                  <div key={i} className={`p-4 rounded-2xl text-[13px] font-bold leading-6 shadow-sm ${msg.role === 'user' ? 'bg-[#a62626] text-white mr-8 ml-2' : 'bg-white text-gray-800 ml-8 mr-2 border border-gray-100'}`}>{msg.text}</div>
+                ))}
+                {isThinking && <div className="text-[11px] text-[#a62626] animate-pulse px-4 font-black italic">در حال تحلیل...</div>}
+                <div ref={chatEndRef} />
+             </div>
+             <div className="flex gap-3">
+               <input 
+                  type="text" 
+                  value={inputMessage} 
+                  onChange={(e) => setInputMessage(e.target.value)} 
+                  onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                  placeholder="سوالی دارید؟" 
+                  className="flex-1 bg-white border border-gray-200 rounded-2xl px-5 py-3.5 text-sm outline-none font-bold focus:ring-2 focus:ring-[#a62626]/20 transition-all"
+               />
+               <button onClick={handleSendMessage} className="bg-[#a62626] text-white p-3.5 rounded-2xl shadow-lg active:scale-95 transition-all"><Send size={22} /></button>
+             </div>
           </div>
         </div>
       </div>
 
-      {/* نوار پایین تماس فقط در موبایل */}
-      <div className="md:hidden h-20 border-t bg-white px-6 flex items-center justify-between gap-5 fixed bottom-0 left-0 right-0 z-[11000] shadow-[0_-10px_40px_rgba(0,0,0,0.1)] safe-area-bottom">
+      <div className="h-20 border-t bg-white px-4 md:px-10 flex items-center gap-4 fixed bottom-0 left-0 right-0 z-[11000] safe-area-bottom shadow-[0_-5px_20px_rgba(0,0,0,0.05)]">
+        <button className="flex-1 border-2 border-gray-200 text-gray-700 h-12 rounded-xl font-black text-sm flex items-center justify-center gap-2 active:bg-gray-50 transition-all">{t.chat}</button>
         {!showContact ? (
-          <>
-            <button onClick={() => setShowContact(true)} className="flex-[2] bg-[#a62626] text-white h-14 rounded-2xl font-black text-lg flex items-center justify-center gap-3 active:scale-95 transition-all shadow-xl shadow-red-900/20"><Phone size={28} /> تماس مستقیم</button>
-            <button className="flex-1 border-2 border-gray-100 text-gray-700 h-14 rounded-2xl font-black text-base flex items-center justify-center gap-2">چت</button>
-          </>
+          <button onClick={() => setShowContact(true)} className="flex-[2] bg-[#a62626] text-white h-12 rounded-xl font-black text-base flex items-center justify-center gap-2 active:scale-95 transition-all shadow-xl shadow-red-900/10">{t.contact_info}</button>
         ) : (
-          <div className="flex-1 flex items-center justify-between gap-5 animate-in slide-in-from-bottom-10 duration-400">
-             <div className="flex flex-col">
-                <span className="text-gray-400 text-xs font-black uppercase tracking-wider">شماره مالک</span>
-                <a href={`tel:${property.phoneNumber || '0700112233'}`} className="text-2xl font-black text-[#a62626] tracking-tight">{property.phoneNumber || '۰۷۰۰۱۱۲۲۳۳'}</a>
-             </div>
-             <div className="flex gap-4">
-                <a href={`tel:${property.phoneNumber || '0700112233'}`} className="bg-[#a62626] text-white p-4 rounded-2xl shadow-2xl shadow-red-900/30"><Phone size={32} /></a>
-                <button onClick={() => setShowContact(false)} className="bg-gray-100 text-gray-500 px-6 py-4 rounded-2xl font-black text-sm transition-colors">بستن</button>
-             </div>
-          </div>
+          <a href={`tel:${property.phoneNumber || '0700112233'}`} className="flex-[2] bg-green-600 text-white h-12 rounded-xl font-black text-lg flex items-center justify-center gap-3 animate-in zoom-in duration-300 shadow-xl shadow-green-900/10">
+            <Phone size={24} /> {property.phoneNumber || '۰۷۰۰۱۱۲۲۳۳'}
+          </a>
         )}
       </div>
     </div>

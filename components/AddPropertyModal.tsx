@@ -1,266 +1,196 @@
-
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Camera, MapPin, Check, ChevronRight, Loader2, Smartphone, Crosshair } from 'lucide-react';
-import { MapContainer, TileLayer, useMap, useMapEvents } from 'react-leaflet';
+import { X, MapPin, Check, ChevronRight, Loader2, Smartphone, Camera, Trash2 } from 'lucide-react';
 import { PropertyType, DealType } from '../types';
-import { supabase, TABLES, uploadMultipleImages } from '../services/supabaseClient';
+import { MapContainer, TileLayer, useMap } from 'react-leaflet';
 
 interface AddPropertyModalProps {
   onClose: () => void;
   t: any;
 }
 
-// ناظر دقیق بر اندازه کانتینر برای حل مشکل نقشه خاکستری در مودال
-const MapInvalidator = () => {
+const MapEventsHandler = ({ onMove }: { onMove: (lat: number, lng: number) => void }) => {
   const map = useMap();
-  const container = map.getContainer();
-
   useEffect(() => {
-    if (!map || !container) return;
-
-    const observer = new ResizeObserver(() => {
+    const timer = setTimeout(() => {
       map.invalidateSize();
-    });
-
-    observer.observe(container);
-    
-    // چندین بار تلاش برای لایه‌های نقشه
-    const timers = [100, 300, 600, 1200].map(ms => 
-      setTimeout(() => map.invalidateSize(), ms)
-    );
-
-    return () => {
-      observer.disconnect();
-      timers.forEach(clearTimeout);
-    };
-  }, [map, container]);
-
-  return null;
-};
-
-const MapController = ({ 
-  onLocationFound, 
-  forceCenter 
-}: { 
-  onLocationFound: (lat: number, lng: number) => void,
-  forceCenter: [number, number] | null
-}) => {
-  const map = useMap();
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [map]);
 
   useEffect(() => {
-    if (forceCenter) {
-      map.flyTo(forceCenter, 16, { animate: true });
-      setTimeout(() => map.invalidateSize(), 300);
-    }
-  }, [forceCenter, map]);
-
-  useMapEvents({
-    moveend: () => {
+    const handleMove = () => {
       const center = map.getCenter();
-      onLocationFound(center.lat, center.lng);
-    }
-  });
-
+      onMove(center.lat, center.lng);
+    };
+    map.on('moveend', handleMove);
+    return () => { map.off('moveend', handleMove); };
+  }, [map, onMove]);
   return null;
 };
 
 const AddPropertyModal: React.FC<AddPropertyModalProps> = ({ onClose, t }) => {
   const [view, setView] = useState<'form' | 'map'>('form');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isLocating, setIsLocating] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [formData, setFormData] = useState({ 
     title: '', price: '', type: PropertyType.APARTMENT, 
-    dealType: DealType.SALE, bedrooms: '', area: '', 
+    dealType: DealType.SALE, bedrooms: '1', area: '', 
     address: '', city: 'کابل', description: '', 
     phoneNumber: '',
-    location: null as {lat: number, lng: number} | null 
+    location: { lat: 34.5553, lng: 69.2075 },
+    images: [] as string[]
   });
   
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [previews, setPreviews] = useState<string[]>([]);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  
-  const [tempLocation, setTempLocation] = useState({ lat: 34.5553, lng: 69.2075 });
-  const [forceFly, setForceFly] = useState<[number, number] | null>(null);
+  const [tempLoc, setTempLoc] = useState({ lat: 34.5553, lng: 69.2075 });
 
   const handleInputChange = (field: string, value: any) => setFormData(prev => ({ ...prev, [field]: value }));
-  
-  const handleLocateMe = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsLocating(true);
-    
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const lat = pos.coords.latitude;
-          const lng = pos.coords.longitude;
-          setTempLocation({ lat, lng });
-          setForceFly([lat, lng]);
-          setIsLocating(false);
-        },
-        () => {
-          setIsLocating(false);
-          alert("لطفاً GPS گوشی خود را روشن کنید.");
-        },
-        { enableHighAccuracy: true, timeout: 8000 }
-      );
-    }
-  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      const files = Array.from(e.target.files);
-      setSelectedFiles(prev => [...prev, ...files]);
-      setPreviews(prev => [...prev, ...files.map((file: File) => URL.createObjectURL(file))]);
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      const remainingSlots = 10 - formData.images.length;
+      if (remainingSlots <= 0) {
+        alert(t.no_results ? 'حداکثر ۱۰ عکس مجاز است' : 'Max 10 images');
+        return;
+      }
+
+      const filesToProcess = Array.from(files).slice(0, remainingSlots);
+      const readers = filesToProcess.map(file => {
+        return new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onload = (event) => resolve(event.target?.result as string);
+          reader.readAsDataURL(file);
+        });
+      });
+
+      Promise.all(readers).then(newImages => {
+        setFormData(prev => ({
+          ...prev,
+          images: [...prev.images, ...newImages].slice(0, 10)
+        }));
+      });
     }
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const removeImage = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      images: prev.images.filter((_, i) => i !== index)
+    }));
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.phoneNumber) { alert("لطفاً شماره تماس را وارد کنید."); return; }
+    if (!formData.title || !formData.price) return;
     setIsSubmitting(true);
-    try {
-      let finalImageUrls = selectedFiles.length ? await uploadMultipleImages(selectedFiles) : [`https://picsum.photos/seed/${Date.now()}/800/600`];
-      const { error } = await supabase.from(TABLES.PROPERTIES).insert([{
-        title: formData.title,
-        price: parseFloat(formData.price) || 0,
-        currency: 'AFN',
-        deal_type: formData.dealType,
-        property_type: formData.type,
-        bedrooms: parseInt(formData.bedrooms) || 0,
-        area: parseFloat(formData.area) || 0,
-        city: formData.city,
-        address: formData.address,
-        description: formData.description,
-        phone_number: formData.phoneNumber,
-        location: formData.location || tempLocation,
-        images: finalImageUrls,
-        status: 'PENDING',
-        owner_id: 'user_123'
-      }]);
-      if (error) throw error;
+    setTimeout(() => {
+      setIsSubmitting(false);
       setIsSuccess(true);
-    } catch (err: any) { 
-      alert("خطا در ثبت آگهی.");
-    } finally { setIsSubmitting(false); }
+    }, 1500);
   };
 
   if (isSuccess) return (
-    <div className="fixed inset-0 z-[10001] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm" onClick={onClose}>
-      <div className="bg-white w-full max-w-sm rounded-[2.5rem] p-10 text-center shadow-2xl animate-in zoom-in duration-300">
+    <div className="fixed inset-0 z-[10001] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+      <div className="bg-white w-full max-w-sm rounded-[2.5rem] p-10 text-center animate-slide-up shadow-2xl">
         <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6"><Check size={40} /></div>
-        <h2 className="text-2xl font-black mb-2">ثبت شد!</h2>
-        <p className="text-sm text-gray-500 mb-8 font-bold leading-7">آگهی پس از تایید مدیریت نمایش داده می‌شود.</p>
-        <button onClick={() => window.location.reload()} className="w-full bg-[#a62626] text-white py-4 rounded-xl font-black text-lg shadow-xl">متوجه شدم</button>
+        <h2 className="text-2xl font-black mb-2">{t.new}</h2>
+        <p className="text-sm text-gray-500 mb-8 font-bold leading-7">{t.success_msg}</p>
+        <button onClick={() => window.location.reload()} className="w-full bg-[#a62626] text-white py-4 rounded-2xl font-black text-lg">متوجه شدم</button>
       </div>
     </div>
   );
 
   return (
-    <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/60 md:backdrop-blur-sm" onClick={onClose}>
-      <div className="bg-white w-full h-full md:h-auto md:max-h-[90vh] md:max-w-md md:rounded-[3rem] flex flex-col overflow-hidden relative shadow-2xl" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/60 p-0 md:p-4" onClick={onClose}>
+      <div className="bg-white w-full max-w-2xl h-full md:h-auto md:max-h-[92vh] rounded-none md:rounded-[2.5rem] flex flex-col overflow-hidden shadow-2xl relative" onClick={e => e.stopPropagation()}>
         
         {view === 'map' && (
-          <div className="absolute inset-0 z-[500] flex flex-col bg-white">
-            <div className="h-16 flex items-center px-6 border-b shrink-0 bg-white shadow-sm">
-              <button onClick={() => setView('form')} className="p-2 -mr-2"><ChevronRight size={32} /></button>
-              <h2 className="font-black text-lg mr-2">انتخاب مکان روی نقشه</h2>
+          <div className="absolute inset-0 z-[110] flex flex-col bg-white">
+            <div className="h-16 flex items-center px-6 border-b shrink-0 bg-white">
+              <button onClick={() => setView('form')} className="p-2 -mr-2 hover:bg-gray-100 rounded-full transition-all"><ChevronRight size={32} /></button>
+              <h2 className="font-black text-lg mr-2">{t.select_location}</h2>
             </div>
-            <div className="flex-1 relative bg-gray-100">
-              <MapContainer 
-                key="add-prop-map-final"
-                center={[tempLocation.lat, tempLocation.lng]} 
-                zoom={14} 
-                style={{ height: '100%', width: '100%' }} 
-                zoomControl={false}
-              >
+            <div className="flex-1 relative">
+              <MapContainer center={[tempLoc.lat, tempLoc.lng]} zoom={15} style={{ height: '100%', width: '100%' }} zoomControl={false}>
                 <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                <MapInvalidator />
-                <MapController onLocationFound={(lat, lng) => setTempLocation({ lat, lng })} forceCenter={forceFly} />
+                <MapEventsHandler onMove={(lat, lng) => setTempLoc({ lat, lng })} />
               </MapContainer>
-              
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-full z-[1000] pointer-events-none pb-4">
-                <MapPin size={48} className="text-[#a62626] drop-shadow-2xl" />
+                 <div className="w-10 h-10 bg-[#a62626] rounded-full border-4 border-white shadow-2xl flex items-center justify-center"><div className="w-2 h-2 bg-white rounded-full"></div></div>
               </div>
-              
-              {/* دکمه مکان‌یابی - سمت راست، کاملاً شفاف */}
-              <button 
-                onClick={handleLocateMe}
-                className="absolute bottom-40 right-6 w-14 h-14 text-[#a62626] z-[1500] flex items-center justify-center active:scale-90 transition-all filter drop-shadow-[0_2px_4px_rgba(255,255,255,0.8)]"
-                style={{ background: 'transparent', border: 'none' }}
-              >
-                {isLocating ? <Loader2 size={38} className="animate-spin" /> : <Crosshair size={38} />}
-              </button>
-
-              <div className="absolute bottom-8 left-8 right-8 z-[1500]">
-                <button onClick={() => { handleInputChange('location', tempLocation); setView('form'); }} className="w-full bg-[#a62626] text-white py-4.5 rounded-2xl font-black text-lg shadow-2xl active:scale-95 transition-all">تایید مکان</button>
+              <div className="absolute bottom-10 left-6 right-6 z-[1000]">
+                <button onClick={() => { handleInputChange('location', tempLoc); setView('form'); }} className="w-full bg-[#a62626] text-white py-4.5 rounded-2xl font-black text-lg shadow-2xl active:scale-95 transition-all">{t.submit}</button>
               </div>
             </div>
           </div>
         )}
 
-        <div className="flex justify-between items-center p-5 border-b shrink-0 bg-white">
-          <h2 className="font-black text-xl text-gray-800">ثبت آگهی املاک</h2>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors"><X size={32} /></button>
+        <div className="flex justify-between items-center p-6 border-b shrink-0">
+          <h2 className="font-black text-xl text-gray-800">{t.add_post}</h2>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors"><X size={28} /></button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-6 no-scrollbar pb-32">
-          <form id="prop-form" onSubmit={handleSubmit} className="space-y-6">
-            <div className="flex bg-gray-100 p-1.5 rounded-2xl">
-              {Object.values(DealType).map(type => (
-                <button 
-                  key={type} 
-                  type="button" 
-                  onClick={() => handleInputChange('dealType', type)} 
-                  className={`flex-1 py-3 rounded-xl text-xs font-black transition-all ${formData.dealType === type ? 'bg-[#a62626] text-white shadow-md' : 'text-gray-500 hover:bg-gray-200'}`}
-                >
-                  {type === DealType.SALE ? 'فروشی' : type === DealType.RENT ? 'کرایی' : 'گروی'}
-                </button>
-              ))}
+          <form id="prop-form" onSubmit={handleSubmit} className="space-y-7">
+            <div className="space-y-3">
+              <div className="flex justify-between items-center mr-2">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.upload_photo} (تا ۱۰ قطعه)</label>
+                <span className="text-[10px] font-black text-gray-400">{formData.images.length} / 10</span>
+              </div>
+              <div className="grid grid-cols-4 sm:grid-cols-5 gap-3">
+                {formData.images.map((img, i) => (
+                  <div key={i} className="aspect-square rounded-2xl overflow-hidden relative border border-gray-100 group shadow-sm">
+                    <img src={img} className="w-full h-full object-cover" alt="upload" />
+                    <button type="button" onClick={() => removeImage(i)} className="absolute top-1 right-1 bg-black/60 text-white p-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={14} /></button>
+                  </div>
+                ))}
+                {formData.images.length < 10 && (
+                  <button type="button" onClick={() => fileInputRef.current?.click()} className="aspect-square rounded-2xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center text-gray-400 bg-gray-50 hover:border-[#a62626] hover:text-[#a62626] transition-all">
+                    <Camera size={28} />
+                    <span className="text-[9px] font-black mt-1 uppercase tracking-tighter">{t.upload_photo}</span>
+                  </button>
+                )}
+              </div>
+              <input type="file" ref={fileInputRef} hidden accept="image/*" multiple onChange={handleFileChange} />
             </div>
+
+            <div className="space-y-3">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mr-2">{t.type}</label>
+              <div className="flex bg-gray-100 p-1.5 rounded-2xl">
+                {Object.values(DealType).map(type => (
+                  <button key={type} type="button" onClick={() => handleInputChange('dealType', type)} className={`flex-1 py-3 rounded-xl text-sm font-black transition-all ${formData.dealType === type ? 'bg-white text-[#a62626] shadow-sm' : 'text-gray-400'}`}>{type}</button>
+                ))}
+              </div>
+            </div>
+
+            <button type="button" onClick={() => setView('map')} className={`w-full border-2 border-dashed rounded-2xl p-7 flex flex-col items-center gap-3 transition-all group ${formData.location.lat !== 34.5553 ? 'border-green-500 bg-green-50 text-green-600' : 'border-gray-200 text-gray-400 hover:border-[#a62626] hover:text-[#a62626]'}`}>
+              <MapPin size={36} /><span className="block font-black text-sm">{formData.location.lat !== 34.5553 ? t.location : t.select_location}</span>
+            </button>
+
+            <div className="grid grid-cols-2 gap-5">
+              <input type="number" value={formData.price} onChange={e => handleInputChange('price', e.target.value)} placeholder={t.price} className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-5 py-4 font-black outline-none focus:ring-2 focus:ring-[#a62626]/10" required />
+              <input type="number" value={formData.area} onChange={e => handleInputChange('area', e.target.value)} placeholder={t.area} className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-5 py-4 font-black outline-none focus:ring-2 focus:ring-[#a62626]/10" required />
+            </div>
+
+            <input type="text" value={formData.title} onChange={e => handleInputChange('title', e.target.value)} placeholder={t.title} className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-5 py-4 font-black outline-none" required />
             
-            <div className="grid grid-cols-4 gap-3">
-              {previews.map((img, i) => (<div key={i} className="aspect-square rounded-2xl border overflow-hidden shadow-sm"><img src={img} className="w-full h-full object-cover" /></div>))}
-              <button type="button" onClick={() => fileInputRef.current?.click()} className="aspect-square rounded-2xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center text-gray-400 bg-gray-50 hover:border-[#a62626] transition-all">
-                <Camera size={32} /> <span className="text-[10px] mt-1 font-black">عکس</span>
-              </button>
-              <input type="file" ref={fileInputRef} hidden multiple onChange={handleFileChange} />
+            <div className="relative">
+              <Smartphone className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+              <input type="tel" value={formData.phoneNumber} onChange={e => handleInputChange('phoneNumber', e.target.value)} placeholder="07XXXXXXXX" className="w-full bg-gray-50 border border-gray-200 rounded-2xl pr-12 pl-4 py-4 font-black outline-none text-left dir-ltr" required />
             </div>
 
-            <div className="space-y-4">
-              <input type="text" value={formData.title} onChange={e => handleInputChange('title', e.target.value)} placeholder="عنوان آگهی" className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-5 py-4 text-base font-bold outline-none focus:ring-2 focus:ring-[#a62626]/20 transition-all" required />
-              
-              <div className="grid grid-cols-2 gap-4">
-                <input type="number" value={formData.price} onChange={e => handleInputChange('price', e.target.value)} placeholder="قیمت (افغانی)" className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-5 py-4 text-base font-bold outline-none" required />
-                <input type="number" value={formData.area} onChange={e => handleInputChange('area', e.target.value)} placeholder="مساحت (متر)" className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-5 py-4 text-base font-bold outline-none" required />
-              </div>
-
-              <div className="relative">
-                <Smartphone className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400" size={24} />
-                <input type="tel" value={formData.phoneNumber} onChange={e => handleInputChange('phoneNumber', e.target.value)} placeholder="شماره تماس" className="w-full bg-gray-50 border border-gray-200 rounded-2xl pr-12 pl-5 py-4 text-base font-bold outline-none text-left dir-ltr" required />
-              </div>
-
-              <button type="button" onClick={() => setView('map')} className={`w-full border-2 border-dashed rounded-2xl p-5 flex items-center justify-center gap-2 transition-all font-black text-sm ${formData.location ? 'text-green-600 bg-green-50 border-green-200 shadow-inner' : 'text-gray-400 border-gray-200 hover:border-[#a62626]'}`}>
-                <MapPin size={28} /> {formData.location ? 'مکان انتخاب شد' : 'تعیین مکان روی نقشه'}
-              </button>
-
-              <select value={formData.city} onChange={e => handleInputChange('city', e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-5 py-4 font-bold outline-none appearance-none">
-                {t.provinces.map((p: string) => <option key={p} value={p}>{p}</option>)}
-              </select>
-
-              <textarea rows={3} value={formData.description} onChange={e => handleInputChange('description', e.target.value)} placeholder="توضیحات..." className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-5 py-4 text-base font-bold outline-none resize-none transition-all"></textarea>
-            </div>
+            <textarea rows={4} value={formData.description} onChange={e => handleInputChange('description', e.target.value)} placeholder={t.description} className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-5 py-4 font-bold outline-none resize-none"></textarea>
           </form>
         </div>
 
-        <div className="p-5 border-t bg-white flex gap-4 shrink-0 shadow-inner z-20">
-          <button form="prop-form" type="submit" disabled={isSubmitting} className="flex-[2] bg-[#a62626] text-white py-4 rounded-2xl font-black text-lg shadow-xl disabled:bg-red-300 transition-all flex items-center justify-center">
-            {isSubmitting ? <Loader2 size={28} className="animate-spin" /> : 'ثبت آگهی'}
+        <div className="p-6 border-t bg-white flex gap-4 shrink-0 shadow-inner">
+          <button form="prop-form" type="submit" disabled={isSubmitting} className="flex-[2] bg-[#a62626] text-white py-4.5 rounded-2xl font-black text-lg disabled:opacity-50 active:scale-95 transition-all shadow-xl shadow-red-900/10">
+            {isSubmitting ? <Loader2 size={24} className="animate-spin mx-auto" /> : t.submit}
           </button>
-          <button type="button" onClick={onClose} className="flex-1 bg-gray-100 text-gray-500 py-4 rounded-2xl font-black text-lg">انصراف</button>
+          <button type="button" onClick={onClose} className="flex-1 bg-gray-100 text-gray-500 py-4.5 rounded-2xl font-black text-base">{t.cancel}</button>
         </div>
       </div>
     </div>

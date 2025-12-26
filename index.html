@@ -3,49 +3,50 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-    <title>دیوار افغانستان | Khana</title>
+    <title>خانه افغانستان | املاک، کاریابی، خدمات</title>
     
-    <!-- PWA Meta Tags -->
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="white">
-    <meta name="apple-mobile-web-app-title" content="دیوار">
     <meta name="theme-color" content="#a62626">
-    
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 fill=%22%23a62626%22/><text y=%22.9em%22 x=%225%22 font-size=%2270%22 fill=%22white%22>🏠</text></svg>">
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@100..900&display=swap" rel="stylesheet">
     
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              'divar-red': '#a62626',
+            }
+          }
+        }
+      }
+    </script>
+    
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="manifest" href="/manifest.json" />
-     
     <style>
-      :root { 
-        --main-red: #a62626; 
-        --safe-bottom: env(safe-area-inset-bottom);
-      }
-      body {
-        font-family: 'Vazirmatn', sans-serif;
-        background-color: #ffffff;
-        overscroll-behavior-y: none;
-        margin: 0;
-        padding: 0;
-        touch-action: manipulation;
-        height: 100dvh;
+      body { 
+        font-family: 'Vazirmatn', sans-serif; 
         overflow: hidden;
-        -webkit-user-select: none;
-        user-select: none;
+        background-color: #fff;
       }
-      #root { height: 100%; }
       .no-scrollbar::-webkit-scrollbar { display: none; }
       .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-      * { -webkit-tap-highlight-color: transparent; outline: none !important; }
+      .safe-area-bottom { padding-bottom: env(safe-area-inset-bottom); }
       
-      @media (max-width: 768px) { 
-        .safe-area-bottom { padding-bottom: calc(10px + var(--safe-bottom)); } 
+      /* انیمیشن‌های ورود */
+      @keyframes slideUp {
+        from { transform: translateY(100%); }
+        to { transform: translateY(0); }
       }
+      .animate-slide-up { animation: slideUp 0.3s ease-out; }
+
+      /* سفارشی سازی پاپ‌آپ نقشه */
+      .leaflet-popup-content-wrapper { border-radius: 12px; padding: 0; overflow: hidden; }
+      .leaflet-popup-content { margin: 0; width: 200px !important; }
+      .custom-popup .leaflet-popup-tip { display: none; }
     </style>
   <script type="importmap">
 {

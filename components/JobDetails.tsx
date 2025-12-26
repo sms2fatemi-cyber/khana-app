@@ -1,7 +1,6 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Job, ChatMessage } from '../types';
-import { X, Building2, Sparkles, Send, ChevronRight, Bookmark, MapPinned, Phone, MessageSquare } from 'lucide-react';
+import { Building2, Sparkles, Send, ChevronRight, Bookmark, MapPinned, Phone, MessageSquare, X } from 'lucide-react';
 import { consultAI } from '../services/geminiService';
 
 interface JobDetailsProps {
@@ -31,6 +30,13 @@ const JobDetails: React.FC<JobDetailsProps> = ({ job, onClose, onShowOnMap, isSa
     const aiResponse = await consultAI(userMsg, job, 'JOB');
     setIsThinking(false);
     setChatMessages(prev => [...prev, { role: 'model', text: aiResponse }]);
+  };
+
+  const handleMapAction = () => {
+    if (onShowOnMap) {
+      onShowOnMap();
+      onClose();
+    }
   };
 
   return (
@@ -65,18 +71,18 @@ const JobDetails: React.FC<JobDetailsProps> = ({ job, onClose, onShowOnMap, isSa
               <p className="text-gray-400 text-sm font-bold">{job.date} در {job.city}</p>
               
               <div className="flex items-center justify-between py-6 border-y mt-8">
-                <span className="text-gray-600 font-bold text-lg">معاش پیشنهادی</span>
+                <span className="text-gray-600 font-bold text-lg">{t.salary}</span>
                 <span className="text-2xl font-black text-blue-700">{job.salary?.toLocaleString()} {job.currency}</span>
               </div>
             </div>
 
-            <button onClick={onShowOnMap} className="w-full bg-blue-50/50 border-2 border-dashed border-blue-200 rounded-[2rem] p-6 flex flex-col items-center gap-3 hover:bg-blue-50 transition-all group shadow-sm">
+            <button onClick={handleMapAction} className="w-full bg-blue-50/50 border-2 border-dashed border-blue-200 rounded-[2rem] p-6 flex flex-col items-center gap-3 hover:bg-blue-50 transition-all group shadow-sm">
               <MapPinned size={40} className="text-blue-600 group-hover:scale-110 transition-transform" />
-              <span className="font-black text-base text-blue-900">مشاهده آدرس روی نقشه</span>
+              <span className="font-black text-base text-blue-900">{t.select_location}</span>
             </button>
 
             <div>
-              <h3 className="font-black text-xl text-gray-900 mb-4 underline decoration-blue-200 decoration-8 underline-offset-[-2px]">شرح وظایف</h3>
+              <h3 className="font-black text-xl text-gray-900 mb-4 underline decoration-blue-200 decoration-8 underline-offset-[-2px]">{t.description}</h3>
               <p className="text-gray-600 leading-9 text-lg text-justify whitespace-pre-wrap">{job.description}</p>
             </div>
 
@@ -102,10 +108,10 @@ const JobDetails: React.FC<JobDetailsProps> = ({ job, onClose, onShowOnMap, isSa
             {/* دکمه‌های تماس دسکتاپ */}
             <div className="hidden md:flex flex-col gap-4 pt-4">
                <button onClick={() => setShowContact(!showContact)} className="w-full bg-blue-700 text-white py-5.5 rounded-[1.8rem] font-black text-xl flex items-center justify-center gap-3 shadow-2xl shadow-blue-900/20 active:scale-95 transition-all">
-                 <Phone size={32} /> {showContact ? (job.phoneNumber || "۰۷۰۰۰۰۰۰۰۰") : "ارسال رزومه / تماس"}
+                 <Phone size={32} /> {showContact ? (job.phoneNumber || "۰۷۰۰۰۰۰۰۰۰") : t.contact_info}
                </button>
                <button className="w-full border-2 border-gray-100 text-gray-700 py-5.5 rounded-[1.8rem] font-black text-xl flex items-center justify-center gap-3 hover:bg-gray-50 transition-all">
-                 <MessageSquare size={32} /> چت با مسئول استخدام
+                 <MessageSquare size={32} /> {t.chat}
                </button>
             </div>
 
@@ -118,8 +124,8 @@ const JobDetails: React.FC<JobDetailsProps> = ({ job, onClose, onShowOnMap, isSa
       <div className="md:hidden h-20 border-t bg-white px-6 flex items-center justify-between gap-5 fixed bottom-0 left-0 right-0 z-[11000] shadow-[0_-8px_30px_rgba(0,0,0,0.08)] safe-area-bottom">
         {!showContact ? (
           <>
-            <button onClick={() => setShowContact(true)} className="flex-[2] bg-blue-700 text-white h-14 rounded-2xl font-black text-lg flex items-center justify-center gap-3 active:scale-95 transition-all shadow-xl shadow-blue-900/20">درخواست همکاری / تماس</button>
-            <button className="flex-1 border-2 border-gray-100 text-gray-700 h-14 rounded-2xl font-black text-base flex items-center justify-center gap-2">چت</button>
+            <button onClick={() => setShowContact(true)} className="flex-[2] bg-blue-700 text-white h-14 rounded-2xl font-black text-lg flex items-center justify-center gap-3 active:scale-95 transition-all shadow-xl shadow-blue-900/20">{t.contact_info}</button>
+            <button className="flex-1 border-2 border-gray-100 text-gray-700 h-14 rounded-2xl font-black text-base flex items-center justify-center gap-2">{t.chat}</button>
           </>
         ) : (
           <div className="flex-1 flex items-center justify-between gap-5 animate-in slide-in-from-bottom-5 duration-300">

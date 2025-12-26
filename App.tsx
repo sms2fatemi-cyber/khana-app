@@ -1,291 +1,171 @@
-import { useState, useEffect } from 'react';
-import { List, Search, User, Briefcase, Globe, Building2, Loader2, Wrench, SlidersHorizontal, Map as MapIcon, PlusSquare } from 'lucide-react';
+import { useState, useMemo, useEffect } from 'react';
+import { Search, User, Briefcase, Building2, Wrench, Plus, List, Globe, Bookmark } from 'lucide-react';
 import MapView from './components/MapView';
 import PropertyCard from './components/PropertyCard';
 import PropertyDetails from './components/PropertyDetails';
-import AddPropertyModal from './components/AddPropertyModal';
-import AddJobModal from './components/AddJobModal';
-import AddServiceModal from './components/AddServiceModal';
-import AuthModal from './components/AuthModal';
 import JobCard from './components/JobCard';
 import JobDetails from './components/JobDetails';
 import ServiceCard from './components/ServiceCard';
 import ServiceDetails from './components/ServiceDetails';
-import AdminPanel from './components/AdminPanel';
-import AdminLogin from './components/AdminLogin';
-import { PROPERTIES as MOCK_PROPERTIES, JOBS as MOCK_JOBS, SERVICES as MOCK_SERVICES, ADMINS } from './services/mockData';
-import { Property, DealType, Job, Service, AppMode, AdminUser, Language, PropertyType } from './types';
+import AddPropertyModal from './components/AddPropertyModal';
+import AddJobModal from './components/AddJobModal';
+import AddServiceModal from './components/AddServiceModal';
+import AuthModal from './components/AuthModal';
+import { PROPERTIES, JOBS, SERVICES } from './services/mockData';
+import { Property, Job, Service, AppMode, Language, DealType } from './types';
 import { translations } from './services/translations';
-import { supabase, TABLES, isSupabaseReady } from './services/supabaseClient';
 
 function App() {
-  const [isAdminMode, setIsAdminMode] = useState(false);
-  const [adminUser, setAdminUser] = useState<AdminUser | null>(null);
   const lang = (localStorage.getItem('app_lang') as Language) || 'dari';
+  const t = translations[lang];
 
   const [appMode, setAppMode] = useState<AppMode>('ESTATE');
   const [viewMode, setViewMode] = useState<'map' | 'list'>('list');
   const [selectedItem, setSelectedItem] = useState<Property | Job | Service | null>(null);
-  const [mapFocusItem, setMapFocusItem] = useState<Property | Job | Service | null>(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [showOnlySaved, setShowOnlySaved] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  
-  const [properties, setProperties] = useState<Property[]>([]);
-  const [jobs, setJobs] = useState<Job[]>([]);
-  const [services, setServices] = useState<Service[]>([]);
-  const [admins] = useState<AdminUser[]>(ADMINS);
-
+  const [activeDealFilter, setActiveDealFilter] = useState<'ALL' | DealType>('ALL');
   const [visitedIds, setVisitedIds] = useState<Set<string>>(new Set());
-  const [savedIds, setSavedIds] = useState<Set<string>>(() => {
-    const saved = localStorage.getItem('saved_ads');
-    return saved ? new Set(JSON.parse(saved)) : new Set();
-  });
-  const [activeEstateFilter, setActiveEstateFilter] = useState<'ALL' | DealType>('ALL');
-  const [propertyTypeFilter, setPropertyTypeFilter] = useState<'ALL' | PropertyType>('ALL');
-  const [cityFilter, setCityFilter] = useState('همه ولایات');
 
-  const t = translations[lang];
-
+  // پاکسازی وضعیت هنگام تغییر بخش برای جلوگیری از کرش
   useEffect(() => {
-    localStorage.setItem('saved_ads', JSON.stringify(Array.from(savedIds)));
-  }, [savedIds]);
+    setSelectedItem(null);
+    setIsDetailOpen(false);
+    setSearchTerm('');
+  }, [appMode]);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      setIsLoading(true);
-      if (!isSupabaseReady()) {
-        const fixMock = (items: any[]) => items.map(it => ({
-          ...it,
-          images: it.images || (it.image ? [it.image] : [])
-        }));
-        setProperties(fixMock(MOCK_PROPERTIES));
-        setJobs(fixMock(MOCK_JOBS));
-        setServices(fixMock(MOCK_SERVICES));
-        setIsLoading(false);
-        return;
+  const filteredItems = useMemo(() => {
+    let base = appMode === 'ESTATE' ? PROPERTIES : appMode === 'JOBS' ? JOBS : SERVICES;
+    return base.filter(item => {
+      const titleMatch = item.title.toLowerCase().includes(searchTerm.toLowerCase());
+      if (appMode === 'ESTATE') {
+        const p = item as Property;
+        const dealMatch = activeDealFilter === 'ALL' || p.dealType === activeDealFilter;
+        return titleMatch && dealMatch;
       }
-      try {
-        const { data: propData } = await supabase.from(TABLES.PROPERTIES).select('*').order('created_at', { ascending: false });
-        if (propData) setProperties(propData.map((p: any) => ({ 
-          ...p, 
-          dealType: p.deal_type, 
-          type: p.property_type,
-          phoneNumber: p.phone_number,
-          ownerId: p.owner_id,
-          images: p.images || (p.image ? [p.image] : [])
-        })));
+      return titleMatch;
+    });
+  }, [appMode, searchTerm, activeDealFilter]);
 
-        const { data: jobData } = await supabase.from(TABLES.JOBS).select('*').order('created_at', { ascending: false });
-        if (jobData) setJobs(jobData.map((j: any) => ({
-          ...j,
-          jobType: j.job_type,
-          phoneNumber: j.phone_number,
-          ownerId: j.owner_id,
-          images: j.images || (j.image ? [j.image] : [])
-        })));
-
-        const { data: serviceData } = await supabase.from(TABLES.SERVICES).select('*').order('created_at', { ascending: false });
-        if (serviceData) setServices(serviceData.map((s: any) => ({
-          ...s,
-          providerName: s.provider_name,
-          phoneNumber: s.phone_number,
-          ownerId: s.owner_id,
-          images: s.images || (s.image ? [s.image] : [])
-        })));
-
-      } catch (err) {
-        console.error("Fetch error:", err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchData();
-
-    const handleHash = () => setIsAdminMode(window.location.hash.includes('admin'));
-    handleHash();
-    window.addEventListener('hashchange', handleHash);
-    return () => window.removeEventListener('hashchange', handleHash);
-  }, []);
-  
   const handleSelectItem = (item: Property | Job | Service) => {
     setVisitedIds(prev => new Set(prev).add(item.id));
     setSelectedItem(item);
+    setIsDetailOpen(true);
   };
 
-  const handleCloseDetails = () => setSelectedItem(null);
-
-  const handleShowOnMap = (item: Property | Job | Service) => {
-    setMapFocusItem(item);
-    setSelectedItem(null);
+  const handleShowOnMap = (item: any) => {
+    setSelectedItem(item);
+    setIsDetailOpen(false);
     setViewMode('map');
+    // For small screens, ensure we really switch the mode
+    if (window.innerWidth < 768) {
+      setViewMode('map');
+    }
   };
 
-  const toggleSave = (id: string) => {
-    setSavedIds(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+  const renderCard = (item: any) => {
+    if (appMode === 'ESTATE') {
+      return <PropertyCard key={item.id} property={item as Property} onClick={() => handleSelectItem(item)} isVisited={visitedIds.has(item.id)} />;
+    } else if (appMode === 'JOBS') {
+      return <JobCard key={item.id} job={item as Job} onClick={() => handleSelectItem(item)} isVisited={visitedIds.has(item.id)} />;
+    } else {
+      return <ServiceCard key={item.id} service={item as Service} onClick={() => handleSelectItem(item)} isVisited={visitedIds.has(item.id)} />;
+    }
   };
 
-  const resetFilters = () => {
-    setAppMode('ESTATE');
-    setShowOnlySaved(false);
-    setActiveEstateFilter('ALL');
-    setPropertyTypeFilter('ALL');
-    setSearchTerm('');
-    setCityFilter(t.provinces[0]);
-    setViewMode('list');
+  const renderDetails = () => {
+    if (!selectedItem || !isDetailOpen) return null;
+    if (appMode === 'ESTATE') {
+      return <PropertyDetails property={selectedItem as Property} onClose={() => setIsDetailOpen(false)} onShowOnMap={() => handleShowOnMap(selectedItem)} isSaved={false} onToggleSave={() => {}} t={t} />;
+    } else if (appMode === 'JOBS') {
+      return <JobDetails job={selectedItem as Job} onClose={() => setIsDetailOpen(false)} onShowOnMap={() => handleShowOnMap(selectedItem)} isSaved={false} onToggleSave={() => {}} t={t} />;
+    } else if (appMode === 'SERVICES') {
+      return <ServiceDetails service={selectedItem as Service} onClose={() => setIsDetailOpen(false)} onShowOnMap={() => handleShowOnMap(selectedItem)} isSaved={false} onToggleSave={() => {}} t={t} />;
+    }
+    return null;
   };
 
-  const filteredItems = (() => {
-    let baseItems = appMode === 'ESTATE' ? properties : appMode === 'JOBS' ? jobs : services;
-    return baseItems.filter(item => {
-      const matchesSearch = item.title.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesCity = cityFilter === t.provinces[0] || item.city === cityFilter;
-      const matchesSaved = showOnlySaved ? savedIds.has(item.id) : true;
-      if (appMode === 'ESTATE') {
-        const p = item as Property;
-        const matchesDeal = activeEstateFilter === 'ALL' || p.dealType === activeEstateFilter;
-        const matchesType = propertyTypeFilter === 'ALL' || p.type === propertyTypeFilter;
-        return matchesSearch && matchesCity && matchesSaved && matchesDeal && matchesType;
-      }
-      return matchesSearch && matchesCity && matchesSaved;
-    });
-  })();
-
-  if (isAdminMode) {
-    if (!adminUser) return <AdminLogin admins={admins} onLogin={setAdminUser} onCancel={() => { window.location.hash = ''; }} />;
-    return <AdminPanel properties={properties} setProperties={setProperties} jobs={jobs} setJobs={setJobs} services={services} setServices={setServices} onExit={() => { window.location.hash = ''; }} />;
-  }
+  const renderAddModal = () => {
+    if (!showAddModal) return null;
+    if (appMode === 'ESTATE') return <AddPropertyModal onClose={() => setShowAddModal(false)} t={t} />;
+    if (appMode === 'JOBS') return <AddJobModal onClose={() => setShowAddModal(false)} t={t} />;
+    if (appMode === 'SERVICES') return <AddServiceModal onClose={() => setShowAddModal(false)} t={t} />;
+    return null;
+  };
 
   return (
-    <div className="flex flex-col h-[100dvh] bg-white font-[Vazirmatn] overflow-hidden" dir="rtl">
-      <header className="h-[56px] border-b flex items-center justify-between px-4 bg-white sticky top-0 z-[3000]">
-        <div className="flex items-center gap-4">
-          <button onClick={resetFilters} className="text-[#a62626] font-black text-[22px]">دیوار</button>
-          <div className="h-4 w-[1px] bg-gray-200"></div>
-          <div className="flex items-center gap-1 text-gray-500 text-[13px] font-bold">
-            <Globe size={16} />
-            <select value={cityFilter} onChange={(e) => setCityFilter(e.target.value)} className="bg-transparent border-none outline-none appearance-none cursor-pointer pr-1">
-              {t.provinces.map((p: string) => <option key={p} value={p}>{p}</option>)}
-            </select>
-          </div>
+    <div className="flex flex-col h-screen bg-[#F8F9FA] font-[Vazirmatn] overflow-hidden select-none" dir="rtl">
+      {/* هدر ثابت */}
+      <header className="h-[75px] bg-white border-b flex items-center justify-between px-6 z-[3000] shrink-0 shadow-sm">
+        <div className="flex items-center gap-3">
+          <button onClick={() => setShowAddModal(true)} className="bg-[#a62626] text-white px-7 py-2.5 rounded-xl font-black text-sm shadow-lg shadow-red-900/20 active:scale-95 transition-all">{t.add_post}</button>
+          <button onClick={() => setShowAuthModal(true)} className="p-2.5 text-gray-500 hover:bg-gray-100 rounded-xl transition-all"><User size={24} /></button>
+          <button className="flex items-center gap-2 text-gray-500 font-bold text-sm px-3 py-2 hover:bg-gray-100 rounded-xl transition-all"><Globe size={18} /><span>دری</span></button>
         </div>
         <div className="flex items-center gap-3">
-          <button onClick={() => setShowAddModal(true)} className="bg-white border border-gray-300 text-gray-700 px-3 py-1.5 rounded-lg font-bold text-[13px] active:scale-95 transition-all flex items-center gap-1">
-            <PlusSquare size={16} className="text-[#a62626]" /> ثبت آگهی
-          </button>
+          <div className="text-right hidden sm:block"><h1 className="font-black text-[#a62626] text-xl leading-none">خانه</h1><span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Afghanistan</span></div>
+          <div className="w-12 h-12 bg-[#a62626] rounded-2xl flex items-center justify-center shadow-lg shadow-red-900/30"><Building2 size={26} className="text-white" /></div>
         </div>
       </header>
 
-      <div className="p-3 border-b bg-white">
-        <div className="flex gap-2 items-center">
-          <div className="flex-1 relative">
-            <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-            <input 
-              type="text" 
-              placeholder={`جستجو در ${appMode === 'ESTATE' ? 'املاک' : appMode === 'JOBS' ? 'استخدام' : 'خدمات'}`} 
-              value={searchTerm} 
-              onChange={(e) => setSearchTerm(e.target.value)} 
-              className="w-full bg-gray-100 border-none rounded-lg pr-10 pl-4 py-2.5 text-[14px] font-bold outline-none focus:ring-1 focus:ring-gray-200"
-            />
+      <main className="flex-1 flex overflow-hidden relative">
+        {/* سایدبار لیست */}
+        <div className={`w-full md:w-[420px] lg:w-[460px] h-full flex flex-col bg-transparent z-20 shrink-0 border-l border-gray-100 ${viewMode === 'map' ? 'hidden md:flex' : 'flex'}`}>
+          <div className="p-5 space-y-4 shrink-0">
+            <div className="bg-white p-5 rounded-[2.2rem] shadow-sm space-y-4 border border-gray-50">
+              <div className="relative">
+                <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-300" size={20} />
+                <input type="text" placeholder={appMode === 'ESTATE' ? t.search_estate : appMode === 'JOBS' ? t.search_jobs : t.search_services} className="w-full bg-[#F3F4F6] border-none rounded-2xl pr-12 pl-4 py-3.5 text-sm font-bold outline-none focus:ring-2 focus:ring-[#a62626]/10 transition-all" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+              </div>
+              {appMode === 'ESTATE' && (
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex bg-[#F3F4F6] p-1.5 rounded-2xl flex-1 overflow-hidden">
+                    <button onClick={() => setActiveDealFilter('ALL')} className={`flex-1 py-2 rounded-xl text-[10px] font-black transition-all ${activeDealFilter === 'ALL' ? 'bg-gray-800 text-white shadow-md' : 'text-gray-400'}`}>{t.all}</button>
+                    <button onClick={() => setActiveDealFilter(DealType.SALE)} className={`flex-1 py-2 rounded-xl text-[10px] font-black transition-all ${activeDealFilter === DealType.SALE ? 'bg-gray-800 text-white shadow-md' : 'text-gray-400'}`}>{t.sale}</button>
+                    <button onClick={() => setActiveDealFilter(DealType.RENT)} className={`flex-1 py-2 rounded-xl text-[10px] font-black transition-all ${activeDealFilter === DealType.RENT ? 'bg-gray-800 text-white shadow-md' : 'text-gray-400'}`}>{t.rent}</button>
+                    <button onClick={() => setActiveDealFilter(DealType.MORTGAGE)} className={`flex-1 py-2 rounded-xl text-[10px] font-black transition-all ${activeDealFilter === DealType.MORTGAGE ? 'bg-gray-800 text-white shadow-md' : 'text-gray-400'}`}>{t.mortgage}</button>
+                  </div>
+                  <button onClick={() => setViewMode('map')} className="md:hidden bg-[#F3F4F6] p-3 rounded-xl text-[#a62626]"><List size={18} /></button>
+                </div>
+              )}
+              <div className="flex gap-2">
+                <button className="flex-1 bg-[#F3F4F6] text-gray-500 py-3 rounded-xl font-black text-xs">همه ولایات</button>
+                <button className="flex-1 bg-[#F3F4F6] text-gray-500 py-3 rounded-xl font-black text-xs flex items-center justify-center gap-2"><Bookmark size={14} /> {t.saved}</button>
+              </div>
+            </div>
           </div>
-          <button className="p-2 text-gray-400"><SlidersHorizontal size={20} /></button>
-        </div>
-
-        {appMode === 'ESTATE' && (
-          <div className="flex gap-2 overflow-x-auto no-scrollbar pt-3 pb-1">
-            <button onClick={() => setActiveEstateFilter('ALL')} className={`px-4 py-1.5 rounded-full text-[12px] font-black whitespace-nowrap border ${activeEstateFilter === 'ALL' ? 'bg-[#a62626] text-white border-[#a62626]' : 'bg-white text-gray-600 border-gray-200'}`}>همه</button>
-            <button onClick={() => setActiveEstateFilter(DealType.SALE)} className={`px-4 py-1.5 rounded-full text-[12px] font-black whitespace-nowrap border ${activeEstateFilter === DealType.SALE ? 'bg-[#a62626] text-white border-[#a62626]' : 'bg-white text-gray-600 border-gray-200'}`}>فروش</button>
-            <button onClick={() => setActiveEstateFilter(DealType.RENT)} className={`px-4 py-1.5 rounded-full text-[12px] font-black whitespace-nowrap border ${activeEstateFilter === DealType.RENT ? 'bg-[#a62626] text-white border-[#a62626]' : 'bg-white text-gray-600 border-gray-200'}`}>اجاره</button>
-            <div className="h-6 w-[1px] bg-gray-200 shrink-0 mx-1"></div>
-            {Object.values(PropertyType).map(type => (
-               <button key={type} onClick={() => setPropertyTypeFilter(type)} className={`px-4 py-1.5 rounded-full text-[12px] font-black whitespace-nowrap border ${propertyTypeFilter === type ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-600 border-gray-200'}`}>{type}</button>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div className="flex-1 flex overflow-hidden relative">
-        <div className={`flex-1 flex flex-col transition-all ${viewMode === 'map' ? 'hidden md:flex' : 'flex'}`}>
-          <div className="flex-1 overflow-y-auto no-scrollbar pb-24 bg-gray-50">
-            {isLoading ? (
-              <div className="flex flex-col items-center justify-center py-20 gap-3">
-                <Loader2 className="animate-spin text-[#a62626]" size={32} />
-                <span className="text-xs font-bold text-gray-400">در حال دریافت آگهی‌ها...</span>
-              </div>
-            ) : filteredItems.length === 0 ? (
-              <div className="text-center py-20">
-                <div className="text-gray-200 mb-4 flex justify-center"><Search size={64} /></div>
-                <p className="text-gray-400 font-bold">آگهی یافت نشد.</p>
-              </div>
-            ) : (
-              <div className="bg-white">
-                {filteredItems.map(item => {
-                  const isSaved = savedIds.has(item.id);
-                  const isVisited = visitedIds.has(item.id);
-                  if (appMode === 'ESTATE') return <PropertyCard key={item.id} property={item as Property} onClick={() => handleSelectItem(item)} isSaved={isSaved} isVisited={isVisited} />;
-                  if (appMode === 'JOBS') return <JobCard key={item.id} job={item as Job} onClick={() => handleSelectItem(item)} isSaved={isSaved} isVisited={isVisited} onToggleSave={() => toggleSave(item.id)} />;
-                  return <ServiceCard key={item.id} service={item as Service} onClick={() => handleSelectItem(item)} isSaved={isSaved} isVisited={isVisited} onToggleSave={() => toggleSave(item.id)} />;
-                })}
-              </div>
-            )}
+          
+          {/* بخش اسکرول‌شونده اصلی */}
+          <div className="flex-1 overflow-y-auto px-5 pb-32 no-scrollbar space-y-4">
+            {filteredItems.map(item => renderCard(item))}
+            {filteredItems.length === 0 && <div className="text-center py-20 bg-white rounded-[2rem] border-2 border-dashed border-gray-100 mx-2"><p className="text-gray-400 font-bold">{t.no_results}</p></div>}
           </div>
         </div>
-        
-        <div className={`flex-1 bg-gray-50 relative ${viewMode === 'list' ? 'hidden md:block' : 'block w-full h-full'}`}>
-          <MapView items={filteredItems} selectedItem={mapFocusItem} onSelectItem={handleSelectItem} mode={appMode} visitedIds={visitedIds} />
-        </div>
 
-        <button 
-          onClick={() => setViewMode(v => v === 'list' ? 'map' : 'list')} 
-          className="fixed bottom-[85px] left-1/2 -translate-x-1/2 bg-[#a62626] text-white px-6 py-2.5 rounded-full shadow-xl z-[5000] flex items-center gap-2 font-black text-[13px] active:scale-95 transition-all"
-        >
-          {viewMode === 'map' ? <><List size={18} /> لیست</> : <><MapIcon size={18} /> نقشه</>}
-        </button>
-      </div>
-
-      <nav className="h-[65px] border-t bg-white flex items-center justify-around fixed bottom-0 left-0 right-0 z-[4000] safe-area-bottom shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
-        <button onClick={() => setAppMode('ESTATE')} className={`flex flex-col items-center flex-1 gap-1 py-2 ${appMode === 'ESTATE' ? 'text-[#a62626]' : 'text-gray-400'}`}>
-          <Building2 size={24} /><span className="text-[10px] font-black">دیوار</span>
-        </button>
-        <button onClick={() => setAppMode('JOBS')} className={`flex flex-col items-center flex-1 gap-1 py-2 ${appMode === 'JOBS' ? 'text-blue-600' : 'text-gray-400'}`}>
-          <Briefcase size={24} /><span className="text-[10px] font-black">استخدام</span>
-        </button>
-        <button onClick={() => setAppMode('SERVICES')} className={`flex flex-col items-center flex-1 gap-1 py-2 ${appMode === 'SERVICES' ? 'text-orange-600' : 'text-gray-400'}`}>
-          <Wrench size={24} /><span className="text-[10px] font-black">خدمات</span>
-        </button>
-        <button onClick={() => setShowAuthModal(true)} className={`flex flex-col items-center flex-1 gap-1 py-2 text-gray-400`}>
-          <User size={24} /><span className="text-[10px] font-black">دیوار من</span>
-        </button>
-      </nav>
-
-      {selectedItem && (
-        <>
-          {'bedrooms' in selectedItem ? (
-            <PropertyDetails property={selectedItem as Property} onClose={handleCloseDetails} onShowOnMap={() => handleShowOnMap(selectedItem!)} isSaved={savedIds.has(selectedItem!.id)} onToggleSave={() => toggleSave(selectedItem!.id)} t={t} />
-          ) : 'company' in selectedItem ? (
-            <JobDetails job={selectedItem as Job} onClose={handleCloseDetails} onShowOnMap={() => handleShowOnMap(selectedItem!)} isSaved={savedIds.has(selectedItem!.id)} onToggleSave={() => toggleSave(selectedItem!.id)} t={t} />
-          ) : (
-            <ServiceDetails service={selectedItem as Service} onClose={handleCloseDetails} onShowOnMap={() => handleShowOnMap(selectedItem!)} isSaved={savedIds.has(selectedItem!.id)} onToggleSave={() => toggleSave(selectedItem!.id)} t={t} />
+        {/* بخش نقشه */}
+        <div className={`flex-1 relative ${viewMode === 'list' ? 'hidden md:block' : 'block w-full h-full'}`}>
+          <MapView items={filteredItems} selectedItem={selectedItem} onSelectItem={handleSelectItem} mode={appMode} visitedIds={visitedIds} />
+          {viewMode === 'map' && (
+            <button onClick={() => setViewMode('list')} className="md:hidden absolute top-6 right-6 z-[3000] bg-white p-4 rounded-2xl shadow-2xl text-[#a62626] border border-gray-100"><List size={24} /></button>
           )}
-        </>
-      )}
+        </div>
 
-      {showAddModal && (
-        <>
-          {appMode === 'ESTATE' && <AddPropertyModal onClose={() => setShowAddModal(false)} t={t} />}
-          {appMode === 'JOBS' && <AddJobModal onClose={() => setShowAddModal(false)} t={t} />}
-          {appMode === 'SERVICES' && <AddServiceModal onClose={() => setShowAddModal(false)} t={t} />}
-        </>
-      )}
-      {showAuthModal && <AuthModal onClose={() => setShowAuthModal(false)} lang={lang} onShowMyAds={() => setShowOnlySaved(false)} onShowSaved={() => setShowOnlySaved(true)} />}
+        {/* ناوبری پایین */}
+        <div className="fixed bottom-0 left-0 right-0 h-[85px] bg-white border-t flex items-center justify-around z-[4000] px-4 shadow-[0_-5px_30px_rgba(0,0,0,0.08)]">
+          <button onClick={() => setAppMode('ESTATE')} className={`flex flex-col items-center gap-1.5 flex-1 ${appMode === 'ESTATE' ? 'text-[#a62626]' : 'text-gray-300'}`}><Building2 size={26} /><span className="text-[11px] font-black">{t.estate}</span></button>
+          <button onClick={() => setAppMode('JOBS')} className={`flex flex-col items-center gap-1.5 flex-1 ${appMode === 'JOBS' ? 'text-[#a62626]' : 'text-gray-300'}`}><Briefcase size={26} /><span className="text-[11px] font-black">{t.jobs}</span></button>
+          <div className="relative -top-7"><button onClick={() => setShowAddModal(true)} className="w-16 h-16 bg-[#a62626] text-white rounded-[1.8rem] flex items-center justify-center shadow-2xl shadow-red-900/40 active:scale-90 transition-all border-4 border-white"><Plus size={32} strokeWidth={3} /></button></div>
+          <button onClick={() => setAppMode('SERVICES')} className={`flex flex-col items-center gap-1.5 flex-1 ${appMode === 'SERVICES' ? 'text-[#a62626]' : 'text-gray-300'}`}><Wrench size={26} /><span className="text-[11px] font-black">{t.services}</span></button>
+          <button onClick={() => setShowAuthModal(true)} className="flex flex-col items-center gap-1.5 flex-1 text-gray-300"><User size={26} /><span className="text-[11px] font-black">{t.account}</span></button>
+        </div>
+      </main>
+      {renderDetails()}
+      {renderAddModal()}
+      {showAuthModal && <AuthModal onClose={() => setShowAuthModal(false)} lang={lang} onShowMyAds={() => {}} onShowSaved={() => {}} />}
     </div>
   );
 }
+
 export default App;
