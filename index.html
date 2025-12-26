@@ -3,13 +3,13 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-    <title>دیوار املاک افغانستان | Khana</title>
+    <title>دیوار افغانستان | Khana</title>
     
     <!-- PWA Meta Tags -->
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="white">
-    <meta name="apple-mobile-web-app-title" content="دیوار املاک">
+    <meta name="apple-mobile-web-app-title" content="دیوار">
     <meta name="theme-color" content="#a62626">
     
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 fill=%22%23a62626%22/><text y=%22.9em%22 x=%225%22 font-size=%2270%22 fill=%22white%22>🏠</text></svg>">
@@ -35,14 +35,16 @@
         touch-action: manipulation;
         height: 100dvh;
         overflow: hidden;
+        -webkit-user-select: none;
+        user-select: none;
       }
       #root { height: 100%; }
       .no-scrollbar::-webkit-scrollbar { display: none; }
       .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-      * { -webkit-tap-highlight-color: transparent; }
+      * { -webkit-tap-highlight-color: transparent; outline: none !important; }
       
       @media (max-width: 768px) { 
-        .safe-area-bottom { padding-bottom: var(--safe-bottom); } 
+        .safe-area-bottom { padding-bottom: calc(10px + var(--safe-bottom)); } 
       }
     </style>
   <script type="importmap">

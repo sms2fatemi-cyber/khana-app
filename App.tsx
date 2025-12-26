@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { List, Search, User, Briefcase, Globe, Building2, Loader2, Wrench, SlidersHorizontal, Map as MapIcon } from 'lucide-react';
+import { List, Search, User, Briefcase, Globe, Building2, Loader2, Wrench, SlidersHorizontal, Map as MapIcon, PlusSquare } from 'lucide-react';
 import MapView from './components/MapView';
 import PropertyCard from './components/PropertyCard';
 import PropertyDetails from './components/PropertyDetails';
@@ -168,21 +168,23 @@ function App() {
       <header className="h-[56px] border-b flex items-center justify-between px-4 bg-white sticky top-0 z-[3000]">
         <div className="flex items-center gap-4">
           <button onClick={resetFilters} className="text-[#a62626] font-black text-[22px]">دیوار</button>
-          <div className="h-4 w-[1px] bg-gray-300"></div>
-          <button className="flex items-center gap-1 text-gray-500 text-[13px] font-bold">
+          <div className="h-4 w-[1px] bg-gray-200"></div>
+          <div className="flex items-center gap-1 text-gray-500 text-[13px] font-bold">
             <Globe size={16} />
-            <select value={cityFilter} onChange={(e) => setCityFilter(e.target.value)} className="bg-transparent border-none outline-none appearance-none cursor-pointer">
+            <select value={cityFilter} onChange={(e) => setCityFilter(e.target.value)} className="bg-transparent border-none outline-none appearance-none cursor-pointer pr-1">
               {t.provinces.map((p: string) => <option key={p} value={p}>{p}</option>)}
             </select>
-          </button>
+          </div>
         </div>
         <div className="flex items-center gap-3">
-          <button onClick={() => setShowAddModal(true)} className="bg-[#a62626] text-white px-4 py-1.5 rounded-lg font-black text-[13px] active:scale-95 transition-all">ثبت آگهی</button>
+          <button onClick={() => setShowAddModal(true)} className="bg-white border border-gray-300 text-gray-700 px-3 py-1.5 rounded-lg font-bold text-[13px] active:scale-95 transition-all flex items-center gap-1">
+            <PlusSquare size={16} className="text-[#a62626]" /> ثبت آگهی
+          </button>
         </div>
       </header>
 
       <div className="p-3 border-b bg-white">
-        <div className="flex gap-2 items-center mb-3">
+        <div className="flex gap-2 items-center">
           <div className="flex-1 relative">
             <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
             <input 
@@ -190,20 +192,20 @@ function App() {
               placeholder={`جستجو در ${appMode === 'ESTATE' ? 'املاک' : appMode === 'JOBS' ? 'استخدام' : 'خدمات'}`} 
               value={searchTerm} 
               onChange={(e) => setSearchTerm(e.target.value)} 
-              className="w-full bg-gray-100 border-none rounded-lg pr-10 pl-4 py-2 text-[14px] font-bold outline-none"
+              className="w-full bg-gray-100 border-none rounded-lg pr-10 pl-4 py-2.5 text-[14px] font-bold outline-none focus:ring-1 focus:ring-gray-200"
             />
           </div>
-          <button className="p-2 text-gray-500"><SlidersHorizontal size={20} /></button>
+          <button className="p-2 text-gray-400"><SlidersHorizontal size={20} /></button>
         </div>
 
         {appMode === 'ESTATE' && (
-          <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
-            <button onClick={() => setActiveEstateFilter('ALL')} className={`px-4 py-1.5 rounded-full text-[13px] font-bold whitespace-nowrap border ${activeEstateFilter === 'ALL' ? 'bg-[#a62626] text-white border-[#a62626]' : 'bg-white text-gray-600 border-gray-200'}`}>همه</button>
-            <button onClick={() => setActiveEstateFilter(DealType.SALE)} className={`px-4 py-1.5 rounded-full text-[13px] font-bold whitespace-nowrap border ${activeEstateFilter === DealType.SALE ? 'bg-[#a62626] text-white border-[#a62626]' : 'bg-white text-gray-600 border-gray-200'}`}>فروش</button>
-            <button onClick={() => setActiveEstateFilter(DealType.RENT)} className={`px-4 py-1.5 rounded-full text-[13px] font-bold whitespace-nowrap border ${activeEstateFilter === DealType.RENT ? 'bg-[#a62626] text-white border-[#a62626]' : 'bg-white text-gray-600 border-gray-200'}`}>اجاره</button>
+          <div className="flex gap-2 overflow-x-auto no-scrollbar pt-3 pb-1">
+            <button onClick={() => setActiveEstateFilter('ALL')} className={`px-4 py-1.5 rounded-full text-[12px] font-black whitespace-nowrap border ${activeEstateFilter === 'ALL' ? 'bg-[#a62626] text-white border-[#a62626]' : 'bg-white text-gray-600 border-gray-200'}`}>همه</button>
+            <button onClick={() => setActiveEstateFilter(DealType.SALE)} className={`px-4 py-1.5 rounded-full text-[12px] font-black whitespace-nowrap border ${activeEstateFilter === DealType.SALE ? 'bg-[#a62626] text-white border-[#a62626]' : 'bg-white text-gray-600 border-gray-200'}`}>فروش</button>
+            <button onClick={() => setActiveEstateFilter(DealType.RENT)} className={`px-4 py-1.5 rounded-full text-[12px] font-black whitespace-nowrap border ${activeEstateFilter === DealType.RENT ? 'bg-[#a62626] text-white border-[#a62626]' : 'bg-white text-gray-600 border-gray-200'}`}>اجاره</button>
             <div className="h-6 w-[1px] bg-gray-200 shrink-0 mx-1"></div>
             {Object.values(PropertyType).map(type => (
-               <button key={type} onClick={() => setPropertyTypeFilter(type)} className={`px-4 py-1.5 rounded-full text-[13px] font-bold whitespace-nowrap border ${propertyTypeFilter === type ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-600 border-gray-200'}`}>{type}</button>
+               <button key={type} onClick={() => setPropertyTypeFilter(type)} className={`px-4 py-1.5 rounded-full text-[12px] font-black whitespace-nowrap border ${propertyTypeFilter === type ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-600 border-gray-200'}`}>{type}</button>
             ))}
           </div>
         )}
@@ -211,19 +213,27 @@ function App() {
 
       <div className="flex-1 flex overflow-hidden relative">
         <div className={`flex-1 flex flex-col transition-all ${viewMode === 'map' ? 'hidden md:flex' : 'flex'}`}>
-          <div className="flex-1 overflow-y-auto no-scrollbar pb-24">
+          <div className="flex-1 overflow-y-auto no-scrollbar pb-24 bg-gray-50">
             {isLoading ? (
-              <div className="flex justify-center py-20"><Loader2 className="animate-spin text-gray-300" size={32} /></div>
+              <div className="flex flex-col items-center justify-center py-20 gap-3">
+                <Loader2 className="animate-spin text-[#a62626]" size={32} />
+                <span className="text-xs font-bold text-gray-400">در حال دریافت آگهی‌ها...</span>
+              </div>
             ) : filteredItems.length === 0 ? (
-              <div className="text-center py-20 text-gray-400 font-bold">آگهی یافت نشد.</div>
+              <div className="text-center py-20">
+                <div className="text-gray-200 mb-4 flex justify-center"><Search size={64} /></div>
+                <p className="text-gray-400 font-bold">آگهی یافت نشد.</p>
+              </div>
             ) : (
-              filteredItems.map(item => {
-                const isSaved = savedIds.has(item.id);
-                const isVisited = visitedIds.has(item.id);
-                if (appMode === 'ESTATE') return <PropertyCard key={item.id} property={item as Property} onClick={() => handleSelectItem(item)} isSaved={isSaved} isVisited={isVisited} />;
-                if (appMode === 'JOBS') return <JobCard key={item.id} job={item as Job} onClick={() => handleSelectItem(item)} isSaved={isSaved} isVisited={isVisited} onToggleSave={() => toggleSave(item.id)} />;
-                return <ServiceCard key={item.id} service={item as Service} onClick={() => handleSelectItem(item)} isSaved={isSaved} isVisited={isVisited} onToggleSave={() => toggleSave(item.id)} />;
-              })
+              <div className="bg-white">
+                {filteredItems.map(item => {
+                  const isSaved = savedIds.has(item.id);
+                  const isVisited = visitedIds.has(item.id);
+                  if (appMode === 'ESTATE') return <PropertyCard key={item.id} property={item as Property} onClick={() => handleSelectItem(item)} isSaved={isSaved} isVisited={isVisited} />;
+                  if (appMode === 'JOBS') return <JobCard key={item.id} job={item as Job} onClick={() => handleSelectItem(item)} isSaved={isSaved} isVisited={isVisited} onToggleSave={() => toggleSave(item.id)} />;
+                  return <ServiceCard key={item.id} service={item as Service} onClick={() => handleSelectItem(item)} isSaved={isSaved} isVisited={isVisited} onToggleSave={() => toggleSave(item.id)} />;
+                })}
+              </div>
             )}
           </div>
         </div>
@@ -234,36 +244,34 @@ function App() {
 
         <button 
           onClick={() => setViewMode(v => v === 'list' ? 'map' : 'list')} 
-          className="md:hidden fixed bottom-[80px] left-1/2 -translate-x-1/2 bg-[#a62626] text-white px-6 py-2.5 rounded-full shadow-lg z-[5000] flex items-center gap-2 font-bold text-[14px] active:scale-95 transition-all"
+          className="fixed bottom-[85px] left-1/2 -translate-x-1/2 bg-[#a62626] text-white px-6 py-2.5 rounded-full shadow-xl z-[5000] flex items-center gap-2 font-black text-[13px] active:scale-95 transition-all"
         >
-          {viewMode === 'map' ? <><List size={18} /> لیست آگهی‌ها</> : <><MapIcon size={18} /> نقشه</>}
+          {viewMode === 'map' ? <><List size={18} /> لیست</> : <><MapIcon size={18} /> نقشه</>}
         </button>
       </div>
 
-      <nav className="h-[64px] border-t bg-white flex items-center justify-around fixed bottom-0 left-0 right-0 z-[4000] safe-area-bottom shadow-sm">
-        <button onClick={() => setAppMode('ESTATE')} className={`flex flex-col items-center flex-1 gap-1 ${appMode === 'ESTATE' ? 'text-[#a62626]' : 'text-gray-400'}`}>
-          <Building2 size={24} /><span className="text-[10px] font-bold">دیوار</span>
+      <nav className="h-[65px] border-t bg-white flex items-center justify-around fixed bottom-0 left-0 right-0 z-[4000] safe-area-bottom shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
+        <button onClick={() => setAppMode('ESTATE')} className={`flex flex-col items-center flex-1 gap-1 py-2 ${appMode === 'ESTATE' ? 'text-[#a62626]' : 'text-gray-400'}`}>
+          <Building2 size={24} /><span className="text-[10px] font-black">دیوار</span>
         </button>
-        <button onClick={() => setAppMode('JOBS')} className={`flex flex-col items-center flex-1 gap-1 ${appMode === 'JOBS' ? 'text-blue-600' : 'text-gray-400'}`}>
-          <Briefcase size={24} /><span className="text-[10px] font-bold">استخدام</span>
+        <button onClick={() => setAppMode('JOBS')} className={`flex flex-col items-center flex-1 gap-1 py-2 ${appMode === 'JOBS' ? 'text-blue-600' : 'text-gray-400'}`}>
+          <Briefcase size={24} /><span className="text-[10px] font-black">استخدام</span>
         </button>
-        <button onClick={() => setAppMode('SERVICES')} className={`flex flex-col items-center flex-1 gap-1 ${appMode === 'SERVICES' ? 'text-orange-600' : 'text-gray-400'}`}>
-          <Wrench size={24} /><span className="text-[10px] font-bold">خدمات</span>
+        <button onClick={() => setAppMode('SERVICES')} className={`flex flex-col items-center flex-1 gap-1 py-2 ${appMode === 'SERVICES' ? 'text-orange-600' : 'text-gray-400'}`}>
+          <Wrench size={24} /><span className="text-[10px] font-black">خدمات</span>
         </button>
-        <button onClick={() => setShowAuthModal(true)} className={`flex flex-col items-center flex-1 gap-1 text-gray-400`}>
-          <User size={24} /><span className="text-[10px] font-bold">دیوار من</span>
+        <button onClick={() => setShowAuthModal(true)} className={`flex flex-col items-center flex-1 gap-1 py-2 text-gray-400`}>
+          <User size={24} /><span className="text-[10px] font-black">دیوار من</span>
         </button>
       </nav>
 
       {selectedItem && (
         <>
-          {'bedrooms' in selectedItem && (
+          {'bedrooms' in selectedItem ? (
             <PropertyDetails property={selectedItem as Property} onClose={handleCloseDetails} onShowOnMap={() => handleShowOnMap(selectedItem!)} isSaved={savedIds.has(selectedItem!.id)} onToggleSave={() => toggleSave(selectedItem!.id)} t={t} />
-          )}
-          {'company' in selectedItem && (
+          ) : 'company' in selectedItem ? (
             <JobDetails job={selectedItem as Job} onClose={handleCloseDetails} onShowOnMap={() => handleShowOnMap(selectedItem!)} isSaved={savedIds.has(selectedItem!.id)} onToggleSave={() => toggleSave(selectedItem!.id)} t={t} />
-          )}
-          {'providerName' in selectedItem && (
+          ) : (
             <ServiceDetails service={selectedItem as Service} onClose={handleCloseDetails} onShowOnMap={() => handleShowOnMap(selectedItem!)} isSaved={savedIds.has(selectedItem!.id)} onToggleSave={() => toggleSave(selectedItem!.id)} t={t} />
           )}
         </>
