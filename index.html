@@ -1,37 +1,25 @@
-
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-    <title>Khana.shop | املاک و خدمات افغانستان</title>
+    <title>دیوار املاک افغانستان | Khana</title>
     
     <!-- PWA Meta Tags -->
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Khana">
-    <meta name="theme-color" content="#ffffff">
+    <meta name="apple-mobile-web-app-status-bar-style" content="white">
+    <meta name="apple-mobile-web-app-title" content="دیوار املاک">
+    <meta name="theme-color" content="#a62626">
     
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2280%22>🏠</text></svg>">
-    
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            colors: {
-              brand: '#a62626',
-            }
-          }
-        }
-      }
-    </script>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 fill=%22%23a62626%22/><text y=%22.9em%22 x=%225%22 font-size=%2270%22 fill=%22white%22>🏠</text></svg>">
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@100..900&display=swap" rel="stylesheet">
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="manifest" href="/manifest.json" />
      
     <style>
       :root { 
@@ -42,8 +30,6 @@
         font-family: 'Vazirmatn', sans-serif;
         background-color: #ffffff;
         overscroll-behavior-y: none;
-        -webkit-user-select: none;
-        user-select: none;
         margin: 0;
         padding: 0;
         touch-action: manipulation;
@@ -51,24 +37,12 @@
         overflow: hidden;
       }
       #root { height: 100%; }
-      .leaflet-container { height: 100% !important; width: 100% !important; background: #f1f5f9 !important; }
       .no-scrollbar::-webkit-scrollbar { display: none; }
       .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
       * { -webkit-tap-highlight-color: transparent; }
       
-      /* بهبود ظاهر پاپ‌آپ نقشه */
-      .custom-popup .leaflet-popup-content-wrapper { padding: 0; overflow: hidden; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
-      .custom-popup .leaflet-popup-content { margin: 0; width: 220px !important; }
-      
       @media (max-width: 768px) { 
         .safe-area-bottom { padding-bottom: var(--safe-bottom); } 
-      }
-
-      /* استایل‌های انیمیشن */
-      .animate-in { animation: fadeIn 0.3s ease-out; }
-      @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(10px); }
-        to { opacity: 1; transform: translateY(0); }
       }
     </style>
   <script type="importmap">
