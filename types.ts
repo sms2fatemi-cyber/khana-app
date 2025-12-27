@@ -32,6 +32,7 @@ export interface Property {
   city: string;
   images: string[];
   bedrooms: number;
+  hasStorage: boolean;
   area: number;
   type: PropertyType;
   dealType: DealType;
@@ -39,7 +40,7 @@ export interface Property {
   features: string[];
   date: string;
   status: 'PENDING' | 'APPROVED';
-  phoneNumber: string; // جدید
+  phoneNumber: string;
 }
 
 export enum JobType {
@@ -65,7 +66,7 @@ export interface Job {
   requirements: string[];
   date: string;
   status: 'PENDING' | 'APPROVED';
-  phoneNumber: string; // جدید
+  phoneNumber: string;
 }
 
 export enum ServiceCategory {
