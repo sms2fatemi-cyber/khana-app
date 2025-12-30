@@ -1,26 +1,51 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Check, MapPin, ChevronRight, Crosshair, Loader2, Camera, Trash2, Smartphone } from 'lucide-react';
 import { JobType } from '../types';
 import { MapContainer, TileLayer, useMap } from 'react-leaflet';
-import { supabase, TABLES, uploadImage } from '../services/supabaseClient';
+import { supabase, TABLES, uploadImage, isSupabaseReady } from '../services/supabaseClient';
 
 interface AddJobModalProps {
   onClose: () => void;
   t: any;
 }
 
-const MapController = ({ center }: { center: {lat: number, lng: number} }) => {
+const toEnglishDigits = (str: string) => {
+  if (!str) return '';
+  return str.replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d).toString());
+};
+
+const MapResizer = () => {
   const map = useMap();
   useEffect(() => {
-    // Sequential resizes to fix the "Gray Map" issue
-    map.invalidateSize();
-    const timers = [100, 400, 800].map(ms => setTimeout(() => map.invalidateSize(), ms));
-    
-    if (center && center.lat !== 0) {
-      map.flyTo([center.lat, center.lng], 16, { animate: true, duration: 1.5 });
+    const observer = new ResizeObserver(() => { map.invalidateSize(); });
+    observer.observe(map.getContainer());
+    const t = setTimeout(() => map.invalidateSize(), 300);
+    return () => {
+      observer.disconnect();
+      clearTimeout(t);
+    };
+  }, [map]);
+  return null;
+};
+
+const SafeMapFlyTo = ({ lat, lng }: { lat: number; lng: number }) => {
+  const map = useMap();
+  useEffect(() => {
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+      const attemptFly = () => {
+        try {
+           const size = map.getSize();
+           if (size.x > 0 && size.y > 0) {
+              map.flyTo([lat, lng], 16, { animate: true, duration: 1.5 });
+           } else {
+              setTimeout(attemptFly, 100);
+           }
+        } catch(e) {}
+      };
+      attemptFly();
     }
-    return () => timers.forEach(clearTimeout);
-  }, [center, map]);
+  }, [lat, lng, map]);
   return null;
 };
 
@@ -28,8 +53,12 @@ const MapEventsHandler = ({ onMove }: { onMove: (lat: number, lng: number) => vo
   const map = useMap();
   useEffect(() => {
     const handleMove = () => {
-      const c = map.getCenter();
-      onMove(c.lat, c.lng);
+      try {
+        const c = map.getCenter();
+        if (c && Number.isFinite(c.lat) && Number.isFinite(c.lng)) {
+          onMove(c.lat, c.lng);
+        }
+      } catch(e) {}
     };
     map.on('moveend', handleMove);
     return () => { map.off('moveend', handleMove); };
@@ -45,7 +74,7 @@ const AddJobModal: React.FC<AddJobModalProps> = ({ onClose, t }) => {
   
   const [formData, setFormData] = useState({
     title: '', company: '', jobType: JobType.FULL_TIME, salary: '',
-    city: 'کابل', address: '', description: '', 
+    city: t.provinces[1] || 'کابل', address: '', description: '', 
     phoneNumber: '', 
     location: null as {lat: number, lng: number} | null
   });
@@ -74,9 +103,12 @@ const AddJobModal: React.FC<AddJobModalProps> = ({ onClose, t }) => {
     setIsLocating(true);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        const newLoc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        setMapTarget({ ...newLoc });
-        setTempLocation(newLoc);
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        if (Number.isFinite(lat) && Number.isFinite(lng)) {
+          setMapTarget({ lat, lng });
+          setTempLocation({ lat, lng });
+        }
         setIsLocating(false);
       },
       () => {
@@ -88,29 +120,47 @@ const AddJobModal: React.FC<AddJobModalProps> = ({ onClose, t }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const cleanSalary = toEnglishDigits(formData.salary);
+    const cleanPhone = toEnglishDigits(formData.phoneNumber);
+
+    // اعتبارسنجی موقعیت قبل از ارسال
+    const loc = formData.location || tempLocation;
+    if (!loc || !Number.isFinite(loc.lat) || !Number.isFinite(loc.lng)) {
+        alert("موقعیت مکانی نامعتبر است. لطفا مجددا روی نقشه انتخاب کنید.");
+        return;
+    }
+
     setIsSubmitting(true);
     try {
       let finalImageUrl = '';
       if (selectedFile) finalImageUrl = await uploadImage(selectedFile);
 
-      const { error } = await supabase.from(TABLES.JOBS).insert([{
+      const payload = {
         title: formData.title,
         company: formData.company,
-        salary: parseFloat(formData.salary) || 0,
+        salary: parseFloat(cleanSalary) || 0,
         currency: 'AFN',
         job_type: formData.jobType,
         address: formData.address,
         city: formData.city,
         description: formData.description,
-        phone_number: formData.phoneNumber,
-        location: formData.location || tempLocation,
+        phone_number: cleanPhone,
+        location: loc,
         images: finalImageUrl ? [finalImageUrl] : [`https://picsum.photos/seed/job-${Date.now()}/800/600`],
-        status: 'PENDING'
-      }]);
-      if (error) throw error;
+        status: 'PENDING',
+        owner_id: localStorage.getItem('user_phone') || 'guest'
+      };
+
+      if (isSupabaseReady()) {
+        const { error } = await supabase.from(TABLES.JOBS).insert([payload]);
+        if (error) throw error;
+      } else {
+        await new Promise(resolve => setTimeout(resolve, 1500));
+      }
       setIsSuccess(true);
     } catch (err) {
-      alert("خطا در ثبت آگهی استخدام.");
+       if (!isSupabaseReady()) setIsSuccess(true);
+       else alert("خطا در ثبت آگهی استخدام.");
     } finally {
       setIsSubmitting(false);
     }
@@ -121,7 +171,7 @@ const AddJobModal: React.FC<AddJobModalProps> = ({ onClose, t }) => {
       <div className="bg-white w-full max-w-md rounded-[2.5rem] p-10 text-center animate-in zoom-in duration-300 shadow-2xl">
         <div className="w-20 h-20 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-6"><Check size={40} /></div>
         <h2 className="text-2xl font-black mb-2">ثبت شد!</h2>
-        <p className="text-base text-gray-500 mb-8 font-bold leading-7">آگهی استخدام شما در نوبت تایید قرار گرفت.</p>
+        <p className="text-base text-gray-500 mb-8 font-bold leading-7">آگهی استخدام شما ثبت شد.</p>
         <button onClick={() => window.location.reload()} className="w-full bg-blue-600 text-white py-4 rounded-2xl font-black text-lg">متوجه شدم</button>
       </div>
     </div>
@@ -138,11 +188,14 @@ const AddJobModal: React.FC<AddJobModalProps> = ({ onClose, t }) => {
               <h2 className="font-black text-lg mr-2">محل شرکت روی نقشه</h2>
             </div>
             <div className="flex-1 relative bg-gray-100">
-              <MapContainer center={[tempLocation.lat, tempLocation.lng]} zoom={14} style={{ height: '100%', width: '100%' }} zoomControl={false}>
-                <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                <MapController center={mapTarget} />
-                <MapEventsHandler onMove={(lat, lng) => setTempLocation({ lat, lng })} />
-              </MapContainer>
+              {Number.isFinite(tempLocation.lat) && Number.isFinite(tempLocation.lng) && (
+                <MapContainer center={[tempLocation.lat, tempLocation.lng]} zoom={14} style={{ height: '100%', width: '100%' }} zoomControl={false}>
+                  <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                  <MapResizer />
+                  <SafeMapFlyTo lat={mapTarget.lat} lng={mapTarget.lng} />
+                  <MapEventsHandler onMove={(lat, lng) => setTempLocation({ lat, lng })} />
+                </MapContainer>
+              )}
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-full z-[1000] pointer-events-none pb-4">
                 <MapPin size={48} className="text-blue-600 drop-shadow-2xl animate-bounce" />
               </div>
@@ -192,7 +245,7 @@ const AddJobModal: React.FC<AddJobModalProps> = ({ onClose, t }) => {
                  <select value={formData.jobType} onChange={e => handleInputChange('jobType', e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-5 py-4 font-bold outline-none">
                    {Object.values(JobType).map(type => (<option key={type} value={type}>{type}</option>))}
                  </select>
-                 <input type="number" value={formData.salary} onChange={e => handleInputChange('salary', e.target.value)} placeholder="حقوق (افغانی)" className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-5 py-4 font-bold outline-none" required />
+                 <input type="text" inputMode="numeric" value={formData.salary} onChange={e => handleInputChange('salary', e.target.value)} placeholder="حقوق (افغانی)" className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-5 py-4 font-bold outline-none" required />
               </div>
 
               <div className="relative">
@@ -205,8 +258,11 @@ const AddJobModal: React.FC<AddJobModalProps> = ({ onClose, t }) => {
               </button>
 
               <select value={formData.city} onChange={e => handleInputChange('city', e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-5 py-4 font-bold outline-none">
-                {t.provinces.map((prov: string) => <option key={prov} value={prov}>{prov}</option>)}
+                {t.provinces.slice(1).map((prov: string) => <option key={prov} value={prov}>{prov}</option>)}
               </select>
+
+              <input type="text" value={formData.address} onChange={e => handleInputChange('address', e.target.value)} placeholder="آدرس دقیق شرکت" className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-5 py-4 text-base font-bold outline-none" required />
+
               <textarea rows={4} value={formData.description} onChange={e => handleInputChange('description', e.target.value)} placeholder="توضیحات و شرایط..." className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-5 py-4 font-bold outline-none resize-none transition-all"></textarea>
             </div>
           </form>

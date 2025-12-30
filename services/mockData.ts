@@ -10,7 +10,9 @@ export const ADMINS: AdminUser[] = [
     id: 'admin_1',
     username: 'admin',
     password: '123',
-    fullName: 'مدیر اصلی سیستم'
+    fullName: 'مدیر اصلی سیستم',
+    // Fix: Added missing role property to satisfy AdminUser type
+    role: 'SUPER'
   }
 ];
 
@@ -27,13 +29,17 @@ export const PROPERTIES: Property[] = [
     // Fixed: changed 'image' to 'images' array
     images: ['https://picsum.photos/800/600?random=1'],
     bedrooms: 3,
+    // Fix: Added missing hasStorage property
+    hasStorage: true,
     area: 140,
     type: PropertyType.APARTMENT,
     dealType: DealType.SALE,
     description: 'یک آپارتمان مدرن با دیکوریشن عالی و امنیت ۲۴ ساعته در قلب شهر نو.',
     features: ['گراچ', 'لفت', 'محافظ', 'مرکز گرمی'],
     date: '۲ ساعت پیش',
-    status: 'APPROVED'
+    status: 'APPROVED',
+    // Add missing phoneNumber
+    phoneNumber: '0700112233'
   },
   {
     id: '2',
@@ -47,13 +53,17 @@ export const PROPERTIES: Property[] = [
     // Fixed: changed 'image' to 'images' array
     images: ['https://picsum.photos/800/600?random=2'],
     bedrooms: 5,
+    // Fix: Added missing hasStorage property
+    hasStorage: true,
     area: 450,
     type: PropertyType.HOUSE,
     dealType: DealType.RENT,
     description: 'حویلی پاککاری شده و کلان مناسب برای دفتر یا رهایش خارجیان.',
     features: ['حوض آب بازی', 'سرسبزی', 'جنراتور', 'گراچ کلان'],
     date: 'دیروز',
-    status: 'APPROVED'
+    status: 'APPROVED',
+    // Add missing phoneNumber
+    phoneNumber: '0799887766'
   },
   {
     id: '3',
@@ -67,13 +77,17 @@ export const PROPERTIES: Property[] = [
     // Fixed: changed 'image' to 'images' array
     images: ['https://picsum.photos/800/600?random=3'],
     bedrooms: 0,
+    // Fix: Added missing hasStorage property
+    hasStorage: false,
     area: 200,
     type: PropertyType.COMMERCIAL,
     dealType: DealType.SALE,
     description: 'زمین موقعیت عالی برای ساخت مارکیت یا دکان.',
     features: ['قباله شرعی', 'آب و برق'],
     date: '۳ روز پیش',
-    status: 'APPROVED'
+    status: 'APPROVED',
+    // Add missing phoneNumber
+    phoneNumber: '0700554433'
   },
   {
     id: '4',
@@ -87,13 +101,17 @@ export const PROPERTIES: Property[] = [
     // Fixed: changed 'image' to 'images' array
     images: ['https://picsum.photos/800/600?random=4'],
     bedrooms: 2,
+    // Fix: Added missing hasStorage property
+    hasStorage: false,
     area: 90,
     type: PropertyType.APARTMENT,
     dealType: DealType.MORTGAGE,
     description: 'آپارتمان نوساخت با قیمت مناسب برای فامیل های کوچک.',
     features: ['آفتاب‌رخ', 'نزدیک بازار'],
     date: '۵ ساعت پیش',
-    status: 'APPROVED'
+    status: 'APPROVED',
+    // Add missing phoneNumber
+    phoneNumber: '0788223344'
   },
   {
     id: '5',
@@ -107,13 +125,17 @@ export const PROPERTIES: Property[] = [
     // Fixed: changed 'image' to 'images' array
     images: ['https://picsum.photos/800/600?random=5'],
     bedrooms: 4,
+    // Fix: Added missing hasStorage property
+    hasStorage: true,
     area: 1000,
     type: PropertyType.HOUSE,
     dealType: DealType.SALE,
     description: 'باغ زیبا با درختان میوه دار و تعمیر پخته.',
     features: ['چاه آب', 'برق رهایشی', 'فضای سبز'],
     date: '۱ هفته پیش',
-    status: 'APPROVED'
+    status: 'APPROVED',
+    // Add missing phoneNumber
+    phoneNumber: '0777112233'
   },
   {
     id: '6',
@@ -127,13 +149,17 @@ export const PROPERTIES: Property[] = [
     // Fixed: changed 'image' to 'images' array
     images: ['https://picsum.photos/800/600?random=6'],
     bedrooms: 0,
+    // Fix: Added missing hasStorage property
+    hasStorage: false,
     area: 2000,
     type: PropertyType.LAND,
     dealType: DealType.SALE,
     description: 'زمین مناسب برای کشت و زراعت.',
     features: ['آب فراوان'],
     date: 'لحظاتی پیش',
-    status: 'PENDING'
+    status: 'PENDING',
+    // Add missing phoneNumber
+    phoneNumber: '0744998877'
   }
 ];
 
@@ -154,7 +180,9 @@ export const JOBS: Job[] = [
     description: 'ما به دنبال یک برنامه نویس باتجربه React هستیم که توانایی کار تیمی را داشته باشد.',
     requirements: ['مسلط به React و TypeScript', 'آشنایی با Git', 'حداقل ۲ سال تجربه کاری'],
     date: 'امروز',
-    status: 'APPROVED'
+    status: 'APPROVED',
+    // Add missing phoneNumber
+    phoneNumber: '0700111222'
   },
   {
     id: '102',
@@ -172,7 +200,9 @@ export const JOBS: Job[] = [
     description: 'استخدام بازاریاب میدانی با روابط عمومی بالا برای پخش محصولات.',
     requirements: ['فن بیان عالی', 'آشنایی با شهر هرات', 'سابقه کار در فروش'],
     date: 'دیروز',
-    status: 'APPROVED'
+    status: 'APPROVED',
+    // Add missing phoneNumber
+    phoneNumber: '0799333444'
   },
   {
     id: '103',
@@ -190,7 +220,9 @@ export const JOBS: Job[] = [
     description: 'نیاز به یک طراح گرافیک مسلط به فتوشاپ و ایلاستریتور برای کار پروژه‌ای.',
     requirements: ['تسلط به Adobe Suite', 'خلاقیت بالا', 'تحویل به موقع پروژه'],
     date: '۲ روز پیش',
-    status: 'APPROVED'
+    status: 'APPROVED',
+    // Add missing phoneNumber
+    phoneNumber: '0788555666'
   },
   {
     id: '104',
@@ -208,7 +240,9 @@ export const JOBS: Job[] = [
     description: 'حسابدار برای رسیدگی به امور مالی فروشگاه در شیفت عصر.',
     requirements: ['آشنایی با نرم افزار کوییک بوک', 'دقت بالا در اعداد', 'ضمانت معتبر'],
     date: '۳ ساعت پیش',
-    status: 'APPROVED'
+    status: 'APPROVED',
+    // Add missing phoneNumber
+    phoneNumber: '0777444555'
   },
   {
     id: '105',
@@ -226,7 +260,9 @@ export const JOBS: Job[] = [
     description: 'منشی با روابط عمومی بالا و آشنایی با کامپیوتر.',
     requirements: ['Word', 'Excel'],
     date: 'امروز',
-    status: 'PENDING'
+    status: 'PENDING',
+    // Add missing phoneNumber
+    phoneNumber: '0744111222'
   }
 ];
 

@@ -1,7 +1,7 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Service, ChatMessage } from '../types';
-import { User, Sparkles, Send, ChevronRight, Bookmark, MapPinned, Phone, MessageSquare, X } from 'lucide-react';
-import { consultAI } from '../services/geminiService';
+
+import React, { useState, useEffect } from 'react';
+import { Service } from '../types';
+import { User, ChevronRight, Bookmark, MapPinned, Phone, X, Share2, MessageCircle, ChevronLeft } from 'lucide-react';
 
 interface ServiceDetailsProps {
   service: Service;
@@ -13,135 +13,117 @@ interface ServiceDetailsProps {
 }
 
 const ServiceDetails: React.FC<ServiceDetailsProps> = ({ service, onClose, onShowOnMap, isSaved, onToggleSave, t }) => {
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([{ role: 'model', text: 'سوالی در مورد این خدمات دارید؟' }]);
-  const [inputMessage, setInputMessage] = useState('');
-  const [isThinking, setIsThinking] = useState(false);
   const [showContact, setShowContact] = useState(false);
-  const chatEndRef = useRef<HTMLDivElement>(null);
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
 
-  useEffect(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), [chatMessages]);
+  // Strict Type Guard: Ensure it is a Service (must have providerName)
+  if (!service || !('providerName' in service)) {
+    console.error("ServiceDetails received invalid data:", service);
+    return null; 
+  }
 
-  const handleSendMessage = async () => {
-    if (!inputMessage.trim()) return;
-    const userMsg = inputMessage;
-    setChatMessages(prev => [...prev, { role: 'user', text: userMsg }]);
-    setInputMessage('');
-    setIsThinking(true);
-    const aiResponse = await consultAI(userMsg, service, 'SERVICE');
-    setIsThinking(false);
-    setChatMessages(prev => [...prev, { role: 'model', text: aiResponse }]);
+  const allImages = service.images?.filter(img => img) || [];
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowRight') nextImage();
+      if (e.key === 'ArrowLeft') prevImage();
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activeImageIndex, allImages.length]);
+
+  const handleShare = () => {
+    if (navigator.share) navigator.share({ title: service.title, text: service.description, url: window.location.href }).catch(() => {});
+    else alert("لینک کپی شد!");
   };
 
-  const handleMapAction = () => {
-    if (onShowOnMap) {
-      onShowOnMap();
-      onClose();
-    }
-  };
+  const nextImage = () => { if (allImages.length > 1) setActiveImageIndex(prev => (prev < allImages.length - 1 ? prev + 1 : 0)); };
+  const prevImage = () => { if (allImages.length > 1) setActiveImageIndex(prev => (prev > 0 ? prev - 1 : allImages.length - 1)); };
 
   return (
-    <div className="fixed inset-0 z-[10000] bg-white flex flex-col md:flex-row overflow-hidden font-[Vazirmatn]" dir="rtl">
-      {/* هدر موبایل */}
-      <div className="md:hidden h-12 border-b flex items-center px-4 justify-between bg-white shrink-0">
-        <button onClick={onClose} className="p-2 -mr-2"><ChevronRight size={24} /></button>
-        <span className="font-bold text-sm truncate max-w-[200px]">{service.title}</span>
-        <button onClick={onToggleSave} className="p-2">
-          <Bookmark size={20} className={isSaved ? "fill-orange-600 text-orange-600" : "text-gray-400"} />
+    <div className="fixed inset-0 z-[5000] bg-white font-[Vazirmatn] flex flex-col h-[100dvh] w-full" dir="rtl">
+      
+      {/* Mobile Header */}
+      <div className="md:hidden absolute top-0 left-0 right-0 h-14 z-50 flex items-center justify-between px-4 pt-2 pointer-events-none">
+        <button onClick={onClose} className="p-2 active:scale-90 bg-white/80 backdrop-blur-md rounded-full shadow-sm pointer-events-auto text-gray-700"><ChevronRight size={24} /></button>
+        <div className="flex gap-2 pointer-events-auto">
+          <button onClick={handleShare} className="p-2 text-gray-700 bg-white/80 backdrop-blur-md rounded-full shadow-sm"><Share2 size={20} /></button>
+          <button onClick={onToggleSave} className="p-2 bg-white/80 backdrop-blur-md rounded-full shadow-sm text-gray-700">
+             <Bookmark size={20} className={isSaved ? "fill-orange-600 text-orange-600" : ""} />
+          </button>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto no-scrollbar md:flex md:flex-row md:overflow-hidden">
+        <div className="w-full h-[40vh] md:w-[60%] md:h-full bg-orange-950 relative shrink-0 flex items-center justify-center group select-none">
+            {allImages.length > 0 ? (
+            <>
+                <img src={allImages[activeImageIndex]} className="w-full h-full object-contain" alt={service.title} />
+                {allImages.length > 1 && (
+                <>
+                    <button onClick={(e) => { e.stopPropagation(); nextImage(); }} className="hidden md:flex absolute right-4 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/60 text-white p-3 rounded-full z-50 backdrop-blur-sm border border-white/10"><ChevronRight size={32} /></button>
+                    <button onClick={(e) => { e.stopPropagation(); prevImage(); }} className="hidden md:flex absolute left-4 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/60 text-white p-3 rounded-full z-50 backdrop-blur-sm border border-white/10"><ChevronLeft size={32} /></button>
+                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5 bg-black/40 px-3 py-1.5 rounded-full backdrop-blur-sm z-20">
+                        {allImages.map((_, i) => (<button key={i} onClick={(e) => { e.stopPropagation(); setActiveImageIndex(i); }} className={`h-1.5 rounded-full transition-all ${i === activeImageIndex ? 'bg-white w-4' : 'bg-white/40 w-1.5'}`} />))}
+                    </div>
+                </>
+                )}
+            </>
+            ) : (
+            <div className="w-full h-full flex items-center justify-center text-gray-500"><X size={48} /></div>
+            )}
+            <button onClick={onClose} className="hidden md:flex absolute top-6 left-6 bg-white/10 text-white p-2 rounded-full hover:bg-white/20 backdrop-blur-md z-30 border border-white/20"><X size={24} /></button>
+        </div>
+
+        <div className="bg-white relative z-10 -mt-6 md:mt-0 rounded-t-[2rem] md:rounded-none md:flex-1 md:h-full md:overflow-y-auto no-scrollbar shadow-[0_-5px_20px_rgba(0,0,0,0.1)] md:shadow-none pb-4">
+            <div className="p-6 md:p-8 space-y-6">
+                <div className="max-w-2xl mx-auto md:mx-0">
+                    <div className="hidden md:flex justify-between items-start mb-6">
+                        <h1 className="text-3xl font-black text-gray-900 mb-3">{service.title}</h1>
+                        <div className="flex gap-2">
+                            <button onClick={handleShare} className="p-2 hover:bg-gray-100 rounded-xl"><Share2 size={20} /></button>
+                            <button onClick={onToggleSave} className="p-2 hover:bg-gray-100 rounded-xl"><Bookmark size={20} className={isSaved ? "fill-orange-600 text-orange-600" : "text-gray-500"} /></button>
+                        </div>
+                    </div>
+                    
+                    <h1 className="md:hidden text-2xl font-black text-gray-900 mb-3 pt-2">{service.title}</h1>
+                    <div className="flex items-center gap-2 text-orange-600 font-bold bg-orange-50 px-3 py-2 rounded-xl inline-flex text-xs"><User size={16} /> {service.providerName}</div>
+
+                    <div className="bg-gray-50 p-6 rounded-[2rem] flex justify-between items-center border border-gray-100 my-8">
+                        <div className="text-right">
+                            <span className="text-gray-400 text-[10px] font-black block mb-1 uppercase">{t.experience}</span>
+                            <span className="text-2xl font-black text-orange-600">{service.experience}</span>
+                        </div>
+                        <button onClick={onShowOnMap} className="w-14 h-14 bg-white text-orange-600 rounded-2xl shadow-sm border border-orange-50 flex items-center justify-center active:scale-90"><MapPinned size={28} /></button>
+                    </div>
+
+                    <div className="space-y-4 pb-4">
+                        <h3 className="text-lg font-black text-gray-900">{t.description}</h3>
+                        <p className="text-gray-600 leading-8 text-sm text-justify font-medium">{service.description}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+      </div>
+
+      <div className="bg-white border-t p-4 flex gap-3 z-30 shadow-[0_-5px_20px_rgba(0,0,0,0.03)] safe-area-bottom shrink-0">
+        <button className="flex-1 bg-gray-100 text-gray-700 h-14 rounded-2xl font-black text-lg flex items-center justify-center gap-3 active:scale-95 hover:bg-gray-200">
+            <MessageCircle size={22} />
+            {t.chat}
         </button>
-      </div>
-
-      <div className="flex-1 flex flex-col md:flex-row-reverse overflow-hidden h-full">
-        {/* تصویر خدمات */}
-        <div className="w-full md:w-[70%] h-[40vh] md:h-full bg-orange-900 shrink-0 relative">
-          <img src={service.images?.[0] || `https://picsum.photos/seed/service-${service.id}/800/600`} alt={service.title} className="w-full h-full object-contain" />
-          <div className="hidden md:flex absolute top-6 left-6 gap-3 z-10">
-            <button onClick={onToggleSave} className="p-2.5 bg-black/50 backdrop-blur-md text-white rounded-xl border border-white/20 hover:bg-black/70 transition-all"><Bookmark size={24} className={isSaved ? "fill-white" : ""} /></button>
-            <button onClick={onClose} className="p-2.5 bg-black/50 backdrop-blur-md text-white rounded-xl border border-white/20 hover:bg-black/70 transition-all"><X size={24} /></button>
-          </div>
-        </div>
-
-        {/* اطلاعات ستون کناری */}
-        <div className="flex-1 md:w-[30%] overflow-y-auto no-scrollbar bg-white flex flex-col h-full border-r">
-          <div className="p-5 space-y-5">
-            <div className="border-b pb-5">
-              <h1 className="text-xl font-black text-gray-900 mb-3 leading-relaxed">{service.title}</h1>
-              <div className="flex items-center gap-2 text-orange-600 font-bold mb-3">
-                <User size={20} /> <span className="text-sm">{service.providerName}</span>
-              </div>
-              <p className="text-gray-400 text-xs font-bold">{service.date} در {service.city}</p>
-              
-              <div className="flex items-center justify-between py-4 border-y mt-4">
-                <span className="text-gray-600 font-bold text-sm">{t.experience}</span>
-                <span className="text-lg font-black text-orange-600">{service.experience}</span>
-              </div>
-            </div>
-
-            <button onClick={handleMapAction} className="w-full bg-orange-50/50 border-2 border-dashed border-orange-100 rounded-2xl p-4 flex flex-col items-center gap-2 hover:bg-orange-50 transition-all group">
-              <MapPinned size={24} className="text-orange-600 group-hover:scale-110 transition-transform" />
-              <span className="font-black text-xs text-orange-900">{t.select_location}</span>
-            </button>
-
-            <div>
-              <h3 className="font-black text-sm text-gray-900 mb-2">{t.description}</h3>
-              <p className="text-gray-600 leading-7 text-sm text-justify whitespace-pre-wrap">{service.description}</p>
-            </div>
-
-            {/* مشاور هوشمند */}
-            <div className="bg-orange-50 rounded-2xl p-4 border border-orange-100 shadow-inner">
-               <div className="flex items-center gap-2 mb-3">
-                 <div className="p-1.5 bg-orange-600 rounded-lg text-white"><Sparkles size={16} /></div>
-                 <h3 className="font-black text-orange-900 text-xs">{t.ai_consultant}</h3>
-               </div>
-               <div className="space-y-2 mb-3 max-h-[120px] overflow-y-auto no-scrollbar">
-                  {chatMessages.map((msg, i) => (
-                    <div key={i} className={`p-2.5 rounded-xl text-xs font-bold leading-5 shadow-sm ${msg.role === 'user' ? 'bg-orange-600 text-white mr-8' : 'bg-white text-gray-800 ml-8 border border-orange-50'}`}>{msg.text}</div>
-                  ))}
-                  {isThinking && <div className="text-[10px] text-orange-400 animate-pulse px-2 font-bold">تایپ...</div>}
-                  <div ref={chatEndRef} />
-               </div>
-               <div className="flex gap-2">
-                 <input type="text" value={inputMessage} onChange={(e) => setInputMessage(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} placeholder="سوالی دارید؟" className="flex-1 bg-white border border-orange-200 rounded-xl px-3 py-2 text-xs outline-none font-bold focus:ring-2 focus:ring-orange-500/20" />
-                 <button onClick={handleSendMessage} className="bg-orange-600 text-white p-2 rounded-xl"><Send size={18} /></button>
-               </div>
-            </div>
-
-            {/* دکمه‌های تماس دسکتاپ */}
-            <div className="hidden md:flex flex-col gap-3 pt-4">
-               <button onClick={() => setShowContact(!showContact)} className="w-full bg-orange-600 text-white py-4 rounded-xl font-black text-sm flex items-center justify-center gap-2 shadow-xl shadow-orange-900/10 active:scale-95 transition-all">
-                 <Phone size={18} /> {showContact ? service.phoneNumber : t.contact_info}
-               </button>
-               <button className="w-full border-2 border-gray-100 text-gray-700 py-4 rounded-xl font-black text-sm flex items-center justify-center gap-2 hover:bg-gray-50 transition-all">
-                 <MessageSquare size={18} /> {t.chat}
-               </button>
-            </div>
-
-            <div className="h-20"></div>
-          </div>
-        </div>
-      </div>
-
-      {/* نوار پایین موبایل */}
-      <div className="md:hidden h-14 border-t bg-white px-4 flex items-center justify-between gap-3 fixed bottom-0 left-0 right-0 z-[11000] shadow-[0_-4px_20px_rgba(0,0,0,0.05)] safe-area-bottom">
         {!showContact ? (
-          <>
-            <button onClick={() => setShowContact(true)} className="flex-[2] bg-orange-600 text-white h-10 rounded-xl font-black text-sm flex items-center justify-center gap-2 active:scale-95 transition-all shadow-lg shadow-orange-900/10">{t.contact_info}</button>
-            <button className="flex-1 border-2 border-gray-100 text-gray-700 h-10 rounded-xl font-black text-xs flex items-center justify-center gap-2">{t.chat}</button>
-          </>
+        <button onClick={() => setShowContact(true)} className="flex-[2] bg-orange-700 text-white h-14 rounded-2xl font-black text-lg active:scale-95 shadow-xl hover:bg-orange-800">
+            تماس با ارائه‌دهنده
+        </button>
         ) : (
-          <div className="flex-1 flex items-center justify-between gap-4 animate-in slide-in-from-bottom-3 duration-300">
-             <div className="flex flex-col">
-                <span className="text-gray-400 text-[10px] font-black uppercase">شماره تماس</span>
-                <a href={`tel:${service.phoneNumber}`} className="text-base font-black text-orange-600 tracking-tighter">{service.phoneNumber}</a>
-             </div>
-             <div className="flex gap-2">
-                <a href={`tel:${service.phoneNumber}`} className="bg-orange-600 text-white p-2.5 rounded-xl shadow-lg shadow-orange-900/20"><Phone size={20} /></a>
-                <button onClick={() => setShowContact(false)} className="bg-gray-100 text-gray-500 px-4 py-2 rounded-xl font-black text-xs">بستن</button>
-             </div>
-          </div>
+        <a href={`tel:${service.phoneNumber}`} className="flex-[2] bg-green-600 text-white h-14 rounded-2xl font-black text-xl flex items-center justify-center gap-4 animate-in zoom-in shadow-xl tracking-widest">
+            <Phone size={24} /> {service.phoneNumber}
+        </a>
         )}
       </div>
     </div>
   );
 };
-
 export default ServiceDetails;

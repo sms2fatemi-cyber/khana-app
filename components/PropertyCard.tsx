@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Property } from '../types';
 import { Bookmark } from 'lucide-react';
@@ -6,9 +7,11 @@ interface PropertyCardProps {
   property: Property;
   onClick: () => void;
   isVisited?: boolean;
+  isSaved?: boolean;
+  onToggleSave?: () => void;
 }
 
-const PropertyCard: React.FC<PropertyCardProps> = ({ property, onClick, isVisited }) => {
+const PropertyCard: React.FC<PropertyCardProps> = ({ property, onClick, isVisited, isSaved, onToggleSave }) => {
   return (
     <div 
       onClick={onClick}
@@ -19,7 +22,12 @@ const PropertyCard: React.FC<PropertyCardProps> = ({ property, onClick, isVisite
         <div>
           <div className="flex justify-between items-start">
              <span className="bg-red-50 text-red-500 text-[10px] font-black px-2 py-0.5 rounded-lg">جدید</span>
-             <button className="text-gray-300 hover:text-red-500 transition-colors"><Bookmark size={18} /></button>
+             <button 
+                onClick={(e) => { e.stopPropagation(); onToggleSave?.(); }}
+                className="p-2 -m-2 text-gray-300 hover:text-[#a62626] transition-colors"
+             >
+                <Bookmark size={18} className={isSaved ? "fill-[#a62626] text-[#a62626]" : ""} />
+             </button>
           </div>
           <h3 className="font-black text-gray-800 text-[15px] leading-7 mt-2 line-clamp-2">
             {property.title}

@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Job } from '../types';
 import { Bookmark, Building2 } from 'lucide-react';
@@ -6,9 +7,11 @@ interface JobCardProps {
   job: Job;
   onClick: () => void;
   isVisited?: boolean;
+  isSaved?: boolean;
+  onToggleSave?: () => void;
 }
 
-const JobCard: React.FC<JobCardProps> = ({ job, onClick, isVisited }) => {
+const JobCard: React.FC<JobCardProps> = ({ job, onClick, isVisited, isSaved, onToggleSave }) => {
   return (
     <div 
       onClick={onClick}
@@ -18,7 +21,12 @@ const JobCard: React.FC<JobCardProps> = ({ job, onClick, isVisited }) => {
         <div>
           <div className="flex justify-between items-start">
              <span className="bg-blue-50 text-blue-600 text-[10px] font-black px-2 py-0.5 rounded-lg">استخدام</span>
-             <button className="text-gray-300 hover:text-red-500 transition-colors"><Bookmark size={18} /></button>
+             <button 
+                onClick={(e) => { e.stopPropagation(); onToggleSave?.(); }}
+                className="p-2 -m-2 text-gray-300 hover:text-blue-600 transition-colors"
+             >
+                <Bookmark size={18} className={isSaved ? "fill-blue-600 text-blue-600" : ""} />
+             </button>
           </div>
           <h3 className="font-black text-gray-800 text-[15px] leading-7 mt-2 line-clamp-2">{job.title}</h3>
           <div className="flex items-center gap-1 text-gray-400 text-[11px] font-bold mt-1">

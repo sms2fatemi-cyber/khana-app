@@ -1,7 +1,7 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Property, ChatMessage } from '../types';
-import { Sparkles, Send, Bookmark, ChevronRight, Phone, ChevronLeft, MapPinned, Share2 } from 'lucide-react';
-import { consultAI } from '../services/geminiService';
+
+import React, { useState, useEffect } from 'react';
+import { Property } from '../types';
+import { Bookmark, ChevronRight, Phone, MapPinned, Share2, X, ChevronLeft, MessageCircle } from 'lucide-react';
 
 interface PropertyDetailsProps {
   property: Property;
@@ -13,173 +13,174 @@ interface PropertyDetailsProps {
 }
 
 const PropertyDetails: React.FC<PropertyDetailsProps> = ({ property, onClose, onShowOnMap, isSaved, onToggleSave, t }) => {
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([{ role: 'model', text: 'سلام! من مشاور هوشمند دیوار هستم. چه سوالی درباره این ملک دارید؟' }]);
-  const [inputMessage, setInputMessage] = useState('');
-  const [isThinking, setIsThinking] = useState(false);
   const [showContact, setShowContact] = useState(false);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
-  const chatEndRef = useRef<HTMLDivElement>(null);
+  
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
 
-  const allImages = property.images?.length ? property.images : [`https://picsum.photos/seed/${property.id}/800/600`];
+  // Strict Type Guard: Check if it's really a property (must have 'price')
+  // This prevents the white screen crash if a Job object is accidentally passed here
+  if (!property || !('price' in property)) {
+    console.error("PropertyDetails received invalid data:", property);
+    return null; 
+  }
 
-  useEffect(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), [chatMessages]);
+  const allImages = property.images?.filter(img => img) || [];
+  const minSwipeDistance = 50;
 
-  const handleSendMessage = async () => {
-    if (!inputMessage.trim()) return;
-    const userMsg = inputMessage;
-    setChatMessages(prev => [...prev, { role: 'user', text: userMsg }]);
-    setInputMessage('');
-    setIsThinking(true);
-    const aiResponse = await consultAI(userMsg, property);
-    setIsThinking(false);
-    setChatMessages(prev => [...prev, { role: 'model', text: aiResponse }]);
-  };
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowRight') nextImage();
+      if (e.key === 'ArrowLeft') prevImage();
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activeImageIndex, allImages.length]);
 
-  const handleMapAction = () => {
-    if (onShowOnMap) {
-      onShowOnMap();
-      onClose();
+  const handleShare = () => {
+    if (navigator.share) {
+      navigator.share({
+        title: property.title,
+        text: property.description,
+        url: window.location.href,
+      }).catch(() => {});
+    } else {
+      alert("لینک کپی شد!");
     }
   };
 
   const nextImage = () => {
-    setActiveImageIndex((prev) => (prev + 1) % allImages.length);
+    if (allImages.length > 1) {
+      setActiveImageIndex(prev => (prev < allImages.length - 1 ? prev + 1 : 0));
+    }
   };
 
   const prevImage = () => {
-    setActiveImageIndex((prev) => (prev - 1 + allImages.length) % allImages.length);
+    if (allImages.length > 1) {
+      setActiveImageIndex(prev => (prev > 0 ? prev - 1 : allImages.length - 1));
+    }
+  };
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const onTouchMove = (e: React.TouchEvent) => setTouchEnd(e.targetTouches[0].clientX);
+
+  const onTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > minSwipeDistance;
+    const isRightSwipe = distance < -minSwipeDistance;
+    if (isLeftSwipe) prevImage(); 
+    if (isRightSwipe) nextImage();
   };
 
   return (
-    <div className="fixed inset-0 z-[10000] bg-white flex flex-col overflow-hidden font-[Vazirmatn]" dir="rtl">
-      {/* هدر */}
-      <div className="h-14 border-b flex items-center px-4 justify-between bg-white shrink-0 z-10">
-        <div className="flex items-center gap-2">
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors"><ChevronRight size={28} className="text-gray-700" /></button>
-        </div>
-        <div className="flex gap-2">
-          <button className="p-2 text-gray-600 hover:bg-gray-100 rounded-full"><Share2 size={22} /></button>
-          <button onClick={onToggleSave} className="p-2 hover:bg-gray-100 rounded-full">
-             <Bookmark size={22} className={isSaved ? "fill-[#a62626] text-[#a62626]" : "text-gray-600"} />
+    <div className="fixed inset-0 z-[5000] bg-white font-[Vazirmatn] flex flex-col h-[100dvh] w-full" dir="rtl">
+      
+      {/* Mobile Header */}
+      <div className="md:hidden absolute top-0 left-0 right-0 h-14 z-50 flex items-center justify-between px-4 pt-2 pointer-events-none">
+        <button onClick={onClose} className="p-2 active:scale-90 transition-transform bg-white/80 backdrop-blur-md rounded-full shadow-sm pointer-events-auto text-gray-700"><ChevronRight size={24} /></button>
+        <div className="flex gap-2 pointer-events-auto">
+          <button onClick={handleShare} className="p-2 text-gray-700 bg-white/80 backdrop-blur-md rounded-full shadow-sm"><Share2 size={20} /></button>
+          <button onClick={onToggleSave} className="p-2 bg-white/80 backdrop-blur-md rounded-full shadow-sm text-gray-700">
+             <Bookmark size={20} className={isSaved ? "fill-[#a62626] text-[#a62626]" : ""} />
           </button>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto no-scrollbar pb-24">
-        <div className="w-full aspect-[16/9] md:aspect-[2/1] bg-gray-100 relative group">
-          <img src={allImages[activeImageIndex]} alt={property.title} className="w-full h-full object-cover transition-opacity duration-500" />
-          
-          {allImages.length > 1 && (
+      <div className="flex-1 overflow-y-auto no-scrollbar md:flex md:flex-row md:overflow-hidden">
+        {/* Image Section */}
+        <div 
+            className="w-full h-[40vh] md:w-[60%] md:h-full bg-zinc-900 relative shrink-0 flex items-center justify-center group select-none"
+            onTouchStart={onTouchStart}
+            onTouchMove={onTouchMove}
+            onTouchEnd={onTouchEnd}
+        >
+            {allImages.length > 0 ? (
             <>
-              <button 
-                onClick={prevImage}
-                className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white p-2 rounded-full backdrop-blur-sm transition-all"
-              >
-                <ChevronRight size={24} className="rotate-180" />
-              </button>
-              <button 
-                onClick={nextImage}
-                className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white p-2 rounded-full backdrop-blur-sm transition-all"
-              >
-                <ChevronRight size={24} />
-              </button>
+                <img src={allImages[activeImageIndex]} className="w-full h-full object-contain" alt={property.title} />
+                
+                {/* Desktop Nav */}
+                {allImages.length > 1 && (
+                <>
+                    <button onClick={(e) => { e.stopPropagation(); nextImage(); }} className="hidden md:flex absolute right-4 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/60 text-white p-3 rounded-full transition-all z-50 backdrop-blur-sm border border-white/10 cursor-pointer"><ChevronRight size={32} /></button>
+                    <button onClick={(e) => { e.stopPropagation(); prevImage(); }} className="hidden md:flex absolute left-4 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/60 text-white p-3 rounded-full transition-all z-50 backdrop-blur-sm border border-white/10 cursor-pointer"><ChevronLeft size={32} /></button>
+                </>
+                )}
             </>
-          )}
-
-          <div className="absolute bottom-4 right-4 bg-black/60 text-white px-4 py-1.5 rounded-full text-xs font-black backdrop-blur-md">
-            {activeImageIndex + 1} از {allImages.length}
-          </div>
+            ) : (
+            <div className="w-full h-full flex flex-col items-center justify-center text-gray-500"><X size={48} /><span className="text-sm font-bold">تصویری ندارد</span></div>
+            )}
+            
+            {/* Indicators */}
+            {allImages.length > 1 && (
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5 bg-black/40 px-3 py-1.5 rounded-full backdrop-blur-sm z-20">
+                {allImages.map((_, i) => (
+                <button key={i} onClick={(e) => { e.stopPropagation(); setActiveImageIndex(i); }} className={`h-1.5 rounded-full transition-all ${i === activeImageIndex ? 'bg-white w-4' : 'bg-white/40 w-1.5'}`} />
+                ))}
+            </div>
+            )}
+            
+            <button onClick={onClose} className="hidden md:flex absolute top-6 left-6 bg-white/10 text-white p-2 rounded-full hover:bg-white/20 backdrop-blur-md z-50 border border-white/20 cursor-pointer"><X size={24} /></button>
         </div>
 
-        <div className="p-5 md:p-8 space-y-6 max-w-4xl mx-auto">
-          <div>
-            <h1 className="text-2xl font-black text-gray-900 leading-tight mb-3">{property.title}</h1>
-            <p className="text-gray-400 text-sm font-bold flex items-center gap-2">
-              <span>{property.date} در {property.city}</span>
-            </p>
-          </div>
+        {/* Content Section */}
+        <div className="bg-white relative z-10 -mt-6 md:mt-0 rounded-t-[2rem] md:rounded-none md:flex-1 md:h-full md:overflow-y-auto no-scrollbar shadow-[0_-5px_20px_rgba(0,0,0,0.1)] md:shadow-none pb-4">
+            <div className="p-6 md:p-8 space-y-6">
+                <div className="max-w-2xl mx-auto md:mx-0">
+                    <div className="hidden md:flex justify-between items-start mb-6">
+                        <h1 className="text-3xl font-black text-gray-900 leading-tight">{property.title}</h1>
+                        <div className="flex gap-2">
+                            <button onClick={handleShare} className="p-2 hover:bg-gray-100 rounded-xl"><Share2 size={20} /></button>
+                            <button onClick={onToggleSave} className="p-2 hover:bg-gray-100 rounded-xl"><Bookmark size={20} className={isSaved ? "fill-[#a62626] text-[#a62626]" : "text-gray-500"} /></button>
+                        </div>
+                    </div>
 
-          <hr className="border-gray-100" />
+                    <h1 className="md:hidden text-2xl font-black text-gray-900 leading-tight mb-2 pt-2">{property.title}</h1>
+                    <p className="text-gray-400 font-bold text-xs mb-6">{property.date} در {property.city}</p>
 
-          <div className="grid grid-cols-3 gap-4 py-4 text-center">
-            <div className="flex flex-col gap-1">
-              <span className="text-gray-400 text-xs font-bold">{t.area}</span>
-              <span className="font-black text-base">{property.area} متر</span>
-            </div>
-            <div className="flex flex-col gap-1 border-x border-gray-100">
-              <span className="text-gray-400 text-xs font-bold">{t.bedrooms}</span>
-              <span className="font-black text-base">{property.bedrooms} اتاق</span>
-            </div>
-            <div className="flex flex-col gap-1">
-              <span className="text-gray-400 text-xs font-bold">{t.type}</span>
-              <span className="font-black text-base">{property.type}</span>
-            </div>
-          </div>
+                    <div className="grid grid-cols-3 gap-4 py-6 border-y border-gray-100 text-center">
+                        <div className="bg-gray-50 p-3 rounded-2xl"><span className="block text-gray-400 text-[9px] font-black mb-1 uppercase">{t.area}</span><span className="font-black text-sm">{property.area} متر</span></div>
+                        <div className="bg-gray-50 p-3 rounded-2xl"><span className="block text-gray-400 text-[9px] font-black mb-1 uppercase">{t.bedrooms}</span><span className="font-black text-sm">{property.bedrooms} خوابه</span></div>
+                        <div className="bg-gray-50 p-3 rounded-2xl"><span className="block text-gray-400 text-[9px] font-black mb-1 uppercase">{t.type}</span><span className="font-black text-sm">{property.type}</span></div>
+                    </div>
 
-          <hr className="border-gray-100" />
+                    <div className="flex justify-between items-center bg-red-50/50 p-5 rounded-[1.8rem] border border-red-100 my-8">
+                        <div className="text-right">
+                            <span className="text-gray-400 text-[10px] font-black block mb-1 uppercase">{t.price}</span>
+                            <span className="text-2xl font-black text-[#a62626]">{property.price?.toLocaleString() || '0'} افغانی</span>
+                        </div>
+                        <button onClick={onShowOnMap} className="w-14 h-14 bg-white text-[#a62626] rounded-2xl shadow-sm border border-red-100 flex items-center justify-center active:scale-90 transition-transform"><MapPinned size={28} /></button>
+                    </div>
 
-          <div>
-            <button 
-              onClick={handleMapAction} 
-              className="w-full flex items-center justify-between py-4 px-4 bg-gray-50 rounded-2xl hover:bg-gray-100 transition-all group"
-            >
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-white rounded-xl shadow-sm text-[#a62626] group-hover:scale-110 transition-transform">
-                  <MapPinned size={24} />
+                    <div className="space-y-4 mb-4">
+                        <h3 className="text-lg font-black text-gray-900">{t.description}</h3>
+                        <p className="text-gray-600 leading-8 text-sm text-justify font-medium pb-4">{property.description}</p>
+                    </div>
                 </div>
-                <div className="text-right">
-                  <span className="block text-sm font-black text-gray-800">{t.select_location}</span>
-                  <span className="text-[11px] text-gray-400 font-bold">{property.address || property.city}</span>
-                </div>
-              </div>
-              <ChevronLeft size={20} className="text-gray-300" />
-            </button>
-          </div>
-
-          <hr className="border-gray-100" />
-
-          <div>
-            <h3 className="font-black text-lg text-gray-900 mb-4">{t.description}</h3>
-            <p className="text-gray-600 leading-8 text-[15px] text-justify whitespace-pre-wrap font-medium">{property.description}</p>
-          </div>
-
-          <div className="bg-[#a62626]/5 rounded-3xl p-6 border border-[#a62626]/10 shadow-sm">
-             <div className="flex items-center gap-3 mb-5">
-               <div className="p-2 bg-[#a62626] text-white rounded-xl shadow-lg">
-                 <Sparkles size={20} />
-               </div>
-               <h3 className="font-black text-[#a62626] text-[16px]">{t.ai_consultant}</h3>
-             </div>
-             <div className="max-h-[200px] overflow-y-auto no-scrollbar mb-4 space-y-3">
-                {chatMessages.map((msg, i) => (
-                  <div key={i} className={`p-4 rounded-2xl text-[13px] font-bold leading-6 shadow-sm ${msg.role === 'user' ? 'bg-[#a62626] text-white mr-8 ml-2' : 'bg-white text-gray-800 ml-8 mr-2 border border-gray-100'}`}>{msg.text}</div>
-                ))}
-                {isThinking && <div className="text-[11px] text-[#a62626] animate-pulse px-4 font-black italic">در حال تحلیل...</div>}
-                <div ref={chatEndRef} />
-             </div>
-             <div className="flex gap-3">
-               <input 
-                  type="text" 
-                  value={inputMessage} 
-                  onChange={(e) => setInputMessage(e.target.value)} 
-                  onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                  placeholder="سوالی دارید؟" 
-                  className="flex-1 bg-white border border-gray-200 rounded-2xl px-5 py-3.5 text-sm outline-none font-bold focus:ring-2 focus:ring-[#a62626]/20 transition-all"
-               />
-               <button onClick={handleSendMessage} className="bg-[#a62626] text-white p-3.5 rounded-2xl shadow-lg active:scale-95 transition-all"><Send size={22} /></button>
-             </div>
-          </div>
+            </div>
         </div>
       </div>
 
-      <div className="h-20 border-t bg-white px-4 md:px-10 flex items-center gap-4 fixed bottom-0 left-0 right-0 z-[11000] safe-area-bottom shadow-[0_-5px_20px_rgba(0,0,0,0.05)]">
-        <button className="flex-1 border-2 border-gray-200 text-gray-700 h-12 rounded-xl font-black text-sm flex items-center justify-center gap-2 active:bg-gray-50 transition-all">{t.chat}</button>
+      {/* Action Bar (Fixed at bottom within flex container) */}
+      <div className="bg-white border-t p-4 flex gap-3 z-30 shadow-[0_-5px_20px_rgba(0,0,0,0.03)] safe-area-bottom shrink-0">
+        <button className="flex-1 bg-gray-100 text-gray-700 h-14 rounded-2xl font-black text-lg flex items-center justify-center gap-3 active:scale-95 hover:bg-gray-200 transition-colors">
+            <MessageCircle size={22} />
+            {t.chat}
+        </button>
         {!showContact ? (
-          <button onClick={() => setShowContact(true)} className="flex-[2] bg-[#a62626] text-white h-12 rounded-xl font-black text-base flex items-center justify-center gap-2 active:scale-95 transition-all shadow-xl shadow-red-900/10">{t.contact_info}</button>
+        <button onClick={() => setShowContact(true)} className="flex-[2] bg-[#a62626] text-white h-14 rounded-2xl font-black text-lg flex items-center justify-center gap-3 active:scale-95 shadow-xl shadow-red-900/10 hover:bg-red-800 transition-colors">
+            {t.contact_info}
+        </button>
         ) : (
-          <a href={`tel:${property.phoneNumber || '0700112233'}`} className="flex-[2] bg-green-600 text-white h-12 rounded-xl font-black text-lg flex items-center justify-center gap-3 animate-in zoom-in duration-300 shadow-xl shadow-green-900/10">
-            <Phone size={24} /> {property.phoneNumber || '۰۷۰۰۱۱۲۲۳۳'}
-          </a>
+        <a href={`tel:${property.phoneNumber}`} className="flex-[2] bg-green-600 text-white h-14 rounded-2xl font-black text-xl flex items-center justify-center gap-4 animate-in zoom-in tracking-widest shadow-xl shadow-green-900/10">
+            <Phone size={24} /> {property.phoneNumber}
+        </a>
         )}
       </div>
     </div>

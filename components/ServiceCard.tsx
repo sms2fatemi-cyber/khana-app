@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Service } from '../types';
 import { Bookmark, Wrench } from 'lucide-react';
@@ -6,9 +7,11 @@ interface ServiceCardProps {
   service: Service;
   onClick: () => void;
   isVisited?: boolean;
+  isSaved?: boolean;
+  onToggleSave?: () => void;
 }
 
-const ServiceCard: React.FC<ServiceCardProps> = ({ service, onClick, isVisited }) => {
+const ServiceCard: React.FC<ServiceCardProps> = ({ service, onClick, isVisited, isSaved, onToggleSave }) => {
   return (
     <div 
       onClick={onClick}
@@ -18,7 +21,12 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, onClick, isVisited }
         <div>
           <div className="flex justify-between items-start">
              <span className="bg-orange-50 text-orange-600 text-[10px] font-black px-2 py-0.5 rounded-lg">خدمات فنی</span>
-             <button className="text-gray-300 hover:text-red-500 transition-colors"><Bookmark size={18} /></button>
+             <button 
+                onClick={(e) => { e.stopPropagation(); onToggleSave?.(); }}
+                className="p-2 -m-2 text-gray-300 hover:text-orange-600 transition-colors"
+             >
+                <Bookmark size={18} className={isSaved ? "fill-orange-600 text-orange-600" : ""} />
+             </button>
           </div>
           <h3 className="font-black text-gray-800 text-[15px] leading-7 mt-2 line-clamp-2">{service.title}</h3>
           <p className="text-gray-400 text-[11px] font-bold mt-1">{service.providerName}</p>

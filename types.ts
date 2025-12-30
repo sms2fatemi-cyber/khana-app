@@ -21,6 +21,14 @@ export enum DealType {
   MORTGAGE = 'گروی'
 }
 
+export interface AdminMessage {
+  id: string;
+  targetPhone: string;
+  text: string;
+  date: string;
+  isRead: boolean;
+}
+
 export interface Property {
   id: string;
   ownerId: string;
@@ -39,7 +47,7 @@ export interface Property {
   description: string;
   features: string[];
   date: string;
-  status: 'PENDING' | 'APPROVED';
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
   phoneNumber: string;
 }
 
@@ -65,7 +73,7 @@ export interface Job {
   description: string;
   requirements: string[];
   date: string;
-  status: 'PENDING' | 'APPROVED';
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
   phoneNumber: string;
 }
 
@@ -91,7 +99,7 @@ export interface Service {
   experience: string;
   phoneNumber: string;
   date: string;
-  status: 'PENDING' | 'APPROVED';
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
 }
 
 export interface ChatMessage {
@@ -100,11 +108,14 @@ export interface ChatMessage {
   isThinking?: boolean;
 }
 
+export type AdminRole = 'SUPER' | 'NORMAL';
+
 export interface AdminUser {
   id: string;
   username: string;
   password: string;
   fullName: string;
+  role: AdminRole;
 }
 
 export type AppMode = 'ESTATE' | 'JOBS' | 'SERVICES';

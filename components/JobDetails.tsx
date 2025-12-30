@@ -1,7 +1,7 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Job, ChatMessage } from '../types';
-import { Building2, Sparkles, Send, ChevronRight, Bookmark, MapPinned, Phone, MessageSquare, X } from 'lucide-react';
-import { consultAI } from '../services/geminiService';
+
+import React, { useState, useEffect } from 'react';
+import { Job } from '../types';
+import { Building2, ChevronRight, Bookmark, MapPinned, Phone, X, Share2, MessageCircle, ChevronLeft } from 'lucide-react';
 
 interface JobDetailsProps {
   job: Job;
@@ -13,135 +13,117 @@ interface JobDetailsProps {
 }
 
 const JobDetails: React.FC<JobDetailsProps> = ({ job, onClose, onShowOnMap, isSaved, onToggleSave, t }) => {
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([{ role: 'model', text: 'سلام! سوال شما در مورد این شغل چیست؟' }]);
-  const [inputMessage, setInputMessage] = useState('');
-  const [isThinking, setIsThinking] = useState(false);
   const [showContact, setShowContact] = useState(false);
-  const chatEndRef = useRef<HTMLDivElement>(null);
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
 
-  useEffect(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), [chatMessages]);
+  // Strict Type Guard: Ensure it is a Job (must have company or salary)
+  if (!job || !('company' in job)) {
+    console.error("JobDetails received invalid data:", job);
+    return null; 
+  }
 
-  const handleSendMessage = async () => {
-    if (!inputMessage.trim()) return;
-    const userMsg = inputMessage;
-    setChatMessages(prev => [...prev, { role: 'user', text: userMsg }]);
-    setInputMessage('');
-    setIsThinking(true);
-    const aiResponse = await consultAI(userMsg, job, 'JOB');
-    setIsThinking(false);
-    setChatMessages(prev => [...prev, { role: 'model', text: aiResponse }]);
+  const allImages = job.images?.filter(img => img) || [];
+  
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowRight') nextImage();
+      if (e.key === 'ArrowLeft') prevImage();
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activeImageIndex, allImages.length]);
+
+  const handleShare = () => {
+    if (navigator.share) navigator.share({ title: job.title, text: job.description, url: window.location.href }).catch(() => {});
+    else alert("لینک کپی شد!");
   };
 
-  const handleMapAction = () => {
-    if (onShowOnMap) {
-      onShowOnMap();
-      onClose();
-    }
-  };
-
+  const nextImage = () => { if (allImages.length > 1) setActiveImageIndex(prev => (prev < allImages.length - 1 ? prev + 1 : 0)); };
+  const prevImage = () => { if (allImages.length > 1) setActiveImageIndex(prev => (prev > 0 ? prev - 1 : allImages.length - 1)); };
+  
   return (
-    <div className="fixed inset-0 z-[10000] bg-white flex flex-col md:flex-row overflow-hidden font-[Vazirmatn]" dir="rtl">
-      {/* هدر موبایل */}
-      <div className="md:hidden h-16 border-b flex items-center px-5 justify-between bg-white shrink-0">
-        <button onClick={onClose} className="p-2 -mr-2"><ChevronRight size={32} /></button>
-        <span className="font-bold text-lg truncate max-w-[200px]">{job.title}</span>
-        <button onClick={onToggleSave} className="p-2">
-          <Bookmark size={28} className={isSaved ? "fill-blue-600 text-blue-600" : "text-gray-400"} />
+    <div className="fixed inset-0 z-[5000] bg-white font-[Vazirmatn] flex flex-col h-[100dvh] w-full" dir="rtl">
+      
+      {/* Mobile Header */}
+      <div className="md:hidden absolute top-0 left-0 right-0 h-14 z-50 flex items-center justify-between px-4 pt-2 pointer-events-none">
+        <button onClick={onClose} className="p-2 active:scale-90 bg-white/80 backdrop-blur-md rounded-full shadow-sm pointer-events-auto text-gray-700"><ChevronRight size={24} /></button>
+        <div className="flex gap-2 pointer-events-auto">
+          <button onClick={handleShare} className="p-2 text-gray-700 bg-white/80 backdrop-blur-md rounded-full shadow-sm"><Share2 size={20} /></button>
+          <button onClick={onToggleSave} className="p-2 bg-white/80 backdrop-blur-md rounded-full shadow-sm text-gray-700">
+             <Bookmark size={20} className={isSaved ? "fill-blue-600 text-blue-600" : ""} />
+          </button>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto no-scrollbar md:flex md:flex-row md:overflow-hidden">
+        <div className="w-full h-[40vh] md:w-[60%] md:h-full bg-zinc-900 relative shrink-0 flex items-center justify-center group select-none">
+            {allImages.length > 0 ? (
+            <>
+                <img src={allImages[activeImageIndex]} className="w-full h-full object-contain" alt={job.title} />
+                {allImages.length > 1 && (
+                <>
+                    <button onClick={(e) => { e.stopPropagation(); nextImage(); }} className="hidden md:flex absolute right-4 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/60 text-white p-3 rounded-full z-50 backdrop-blur-sm border border-white/10"><ChevronRight size={32} /></button>
+                    <button onClick={(e) => { e.stopPropagation(); prevImage(); }} className="hidden md:flex absolute left-4 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/60 text-white p-3 rounded-full z-50 backdrop-blur-sm border border-white/10"><ChevronLeft size={32} /></button>
+                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5 bg-black/40 px-3 py-1.5 rounded-full backdrop-blur-sm z-20">
+                        {allImages.map((_, i) => (<button key={i} onClick={(e) => { e.stopPropagation(); setActiveImageIndex(i); }} className={`h-1.5 rounded-full transition-all ${i === activeImageIndex ? 'bg-white w-4' : 'bg-white/40 w-1.5'}`} />))}
+                    </div>
+                </>
+                )}
+            </>
+            ) : (
+            <div className="w-full h-full flex flex-col items-center justify-center text-gray-500"><X size={48} /><span className="text-xs mt-2">تصویر ندارد</span></div>
+            )}
+            <button onClick={onClose} className="hidden md:flex absolute top-6 left-6 bg-white/10 text-white p-2 rounded-full hover:bg-white/20 backdrop-blur-md z-30 border border-white/20"><X size={24} /></button>
+        </div>
+
+        <div className="bg-white relative z-10 -mt-6 md:mt-0 rounded-t-[2rem] md:rounded-none md:flex-1 md:h-full md:overflow-y-auto no-scrollbar shadow-[0_-5px_20px_rgba(0,0,0,0.1)] md:shadow-none pb-4">
+            <div className="p-6 md:p-8 space-y-6">
+                <div className="max-w-2xl mx-auto md:mx-0">
+                    <div className="hidden md:flex justify-between items-start mb-6">
+                        <h1 className="text-3xl font-black text-gray-900 mb-3">{job.title}</h1>
+                        <div className="flex gap-2">
+                            <button onClick={handleShare} className="p-2 hover:bg-gray-100 rounded-xl"><Share2 size={20} /></button>
+                            <button onClick={onToggleSave} className="p-2 hover:bg-gray-100 rounded-xl"><Bookmark size={20} className={isSaved ? "fill-blue-600 text-blue-600" : "text-gray-500"} /></button>
+                        </div>
+                    </div>
+                    
+                    <h1 className="md:hidden text-2xl font-black text-gray-900 mb-3 pt-2">{job.title}</h1>
+                    <div className="flex items-center gap-2 text-blue-700 font-bold bg-blue-50 px-3 py-2 rounded-xl inline-flex text-xs"><Building2 size={16} /> {job.company}</div>
+
+                    <div className="bg-gray-50 p-6 rounded-[2rem] flex justify-between items-center border border-gray-100 my-8">
+                        <div className="text-right">
+                            <span className="text-gray-400 text-[10px] font-black block mb-1 uppercase">{t.salary}</span>
+                            <span className="text-2xl font-black text-blue-700">{job.salary?.toLocaleString() || 'توافقی'} افغانی</span>
+                        </div>
+                        <button onClick={onShowOnMap} className="w-14 h-14 bg-white text-blue-600 rounded-2xl shadow-sm border border-blue-50 flex items-center justify-center active:scale-90"><MapPinned size={28} /></button>
+                    </div>
+
+                    <div className="space-y-4 pb-4">
+                        <h3 className="text-lg font-black text-gray-900">{t.description}</h3>
+                        <p className="text-gray-600 leading-8 text-sm text-justify font-medium">{job.description}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+      </div>
+
+      <div className="bg-white border-t p-4 flex gap-3 z-30 shadow-[0_-5px_20px_rgba(0,0,0,0.03)] safe-area-bottom shrink-0">
+        <button className="flex-1 bg-gray-100 text-gray-700 h-14 rounded-2xl font-black text-lg flex items-center justify-center gap-3 active:scale-95 hover:bg-gray-200">
+            <MessageCircle size={22} />
+            {t.chat}
         </button>
-      </div>
-
-      <div className="flex-1 flex flex-col md:flex-row-reverse overflow-hidden h-full">
-        {/* تصویر شغل */}
-        <div className="w-full md:w-[70%] h-[40vh] md:h-full bg-blue-900 shrink-0 relative shadow-2xl">
-          <img src={job.images?.[0] || `https://picsum.photos/seed/job-${job.id}/800/600`} alt={job.title} className="w-full h-full object-contain" />
-          <div className="hidden md:flex absolute top-10 left-10 gap-4 z-10">
-            <button onClick={onToggleSave} className="p-4 bg-black/50 backdrop-blur-md text-white rounded-2xl border border-white/20 hover:bg-black/70 transition-all shadow-xl"><Bookmark size={32} className={isSaved ? "fill-white" : ""} /></button>
-            <button onClick={onClose} className="p-4 bg-black/50 backdrop-blur-md text-white rounded-2xl border border-white/20 hover:bg-black/70 transition-all shadow-xl"><X size={32} /></button>
-          </div>
-        </div>
-
-        {/* اطلاعات شغل */}
-        <div className="flex-1 md:w-[30%] overflow-y-auto no-scrollbar bg-white flex flex-col h-full border-r shadow-2xl">
-          <div className="p-8 space-y-8">
-            <div className="border-b pb-8">
-              <h1 className="text-3xl font-black text-gray-900 mb-5 leading-relaxed">{job.title}</h1>
-              <div className="flex items-center gap-3 text-blue-700 font-bold mb-5 bg-blue-50 p-3 rounded-2xl inline-flex">
-                <Building2 size={28} /> <span className="text-lg">{job.company}</span>
-              </div>
-              <p className="text-gray-400 text-sm font-bold">{job.date} در {job.city}</p>
-              
-              <div className="flex items-center justify-between py-6 border-y mt-8">
-                <span className="text-gray-600 font-bold text-lg">{t.salary}</span>
-                <span className="text-2xl font-black text-blue-700">{job.salary?.toLocaleString()} {job.currency}</span>
-              </div>
-            </div>
-
-            <button onClick={handleMapAction} className="w-full bg-blue-50/50 border-2 border-dashed border-blue-200 rounded-[2rem] p-6 flex flex-col items-center gap-3 hover:bg-blue-50 transition-all group shadow-sm">
-              <MapPinned size={40} className="text-blue-600 group-hover:scale-110 transition-transform" />
-              <span className="font-black text-base text-blue-900">{t.select_location}</span>
-            </button>
-
-            <div>
-              <h3 className="font-black text-xl text-gray-900 mb-4 underline decoration-blue-200 decoration-8 underline-offset-[-2px]">{t.description}</h3>
-              <p className="text-gray-600 leading-9 text-lg text-justify whitespace-pre-wrap">{job.description}</p>
-            </div>
-
-            {/* بخش AI */}
-            <div className="bg-blue-50/70 rounded-[2.5rem] p-6 border border-blue-100 shadow-inner">
-               <div className="flex items-center gap-3 mb-5">
-                 <div className="p-2.5 bg-blue-600 rounded-2xl text-white shadow-lg"><Sparkles size={24} /></div>
-                 <h3 className="font-black text-blue-900 text-base">{t.ai_consultant}</h3>
-               </div>
-               <div className="space-y-4 mb-5 max-h-[220px] overflow-y-auto no-scrollbar">
-                  {chatMessages.map((msg, i) => (
-                    <div key={i} className={`p-4.5 rounded-2xl text-sm font-bold leading-7 shadow-sm ${msg.role === 'user' ? 'bg-blue-600 text-white mr-10 shadow-blue-200' : 'bg-white text-gray-800 ml-10 border border-blue-50'}`}>{msg.text}</div>
-                  ))}
-                  {isThinking && <div className="text-xs text-blue-400 animate-pulse px-4 font-black">در حال پاسخگویی...</div>}
-                  <div ref={chatEndRef} />
-               </div>
-               <div className="flex gap-3">
-                 <input type="text" value={inputMessage} onChange={(e) => setInputMessage(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} placeholder="سوالی دارید؟" className="flex-1 bg-white border border-blue-200 rounded-2xl px-5 py-4 text-base outline-none font-bold focus:ring-4 focus:ring-blue-500/10 transition-all" />
-                 <button onClick={handleSendMessage} className="bg-blue-600 text-white p-4 rounded-2xl shadow-lg shadow-blue-200 hover:scale-105 active:scale-95 transition-all"><Send size={24} /></button>
-               </div>
-            </div>
-
-            {/* دکمه‌های تماس دسکتاپ */}
-            <div className="hidden md:flex flex-col gap-4 pt-4">
-               <button onClick={() => setShowContact(!showContact)} className="w-full bg-blue-700 text-white py-5.5 rounded-[1.8rem] font-black text-xl flex items-center justify-center gap-3 shadow-2xl shadow-blue-900/20 active:scale-95 transition-all">
-                 <Phone size={32} /> {showContact ? (job.phoneNumber || "۰۷۰۰۰۰۰۰۰۰") : t.contact_info}
-               </button>
-               <button className="w-full border-2 border-gray-100 text-gray-700 py-5.5 rounded-[1.8rem] font-black text-xl flex items-center justify-center gap-3 hover:bg-gray-50 transition-all">
-                 <MessageSquare size={32} /> {t.chat}
-               </button>
-            </div>
-
-            <div className="h-28"></div>
-          </div>
-        </div>
-      </div>
-
-      {/* نوار پایین موبایل */}
-      <div className="md:hidden h-20 border-t bg-white px-6 flex items-center justify-between gap-5 fixed bottom-0 left-0 right-0 z-[11000] shadow-[0_-8px_30px_rgba(0,0,0,0.08)] safe-area-bottom">
         {!showContact ? (
-          <>
-            <button onClick={() => setShowContact(true)} className="flex-[2] bg-blue-700 text-white h-14 rounded-2xl font-black text-lg flex items-center justify-center gap-3 active:scale-95 transition-all shadow-xl shadow-blue-900/20">{t.contact_info}</button>
-            <button className="flex-1 border-2 border-gray-100 text-gray-700 h-14 rounded-2xl font-black text-base flex items-center justify-center gap-2">{t.chat}</button>
-          </>
+        <button onClick={() => setShowContact(true)} className="flex-[2] bg-blue-700 text-white h-14 rounded-2xl font-black text-lg shadow-xl active:scale-95 hover:bg-blue-800">
+            اطلاعات تماس
+        </button>
         ) : (
-          <div className="flex-1 flex items-center justify-between gap-5 animate-in slide-in-from-bottom-5 duration-300">
-             <div className="flex flex-col">
-                <span className="text-gray-400 text-xs font-black uppercase">شماره تماس</span>
-                <a href={`tel:${job.phoneNumber || '0700000000'}`} className="text-2xl font-black text-blue-700 tracking-tighter">{job.phoneNumber || '۰۷۰۰۰۰۰۰۰۰'}</a>
-             </div>
-             <div className="flex gap-4">
-                <a href={`tel:${job.phoneNumber || '0700000000'}`} className="bg-blue-700 text-white p-4 rounded-2xl shadow-xl shadow-blue-900/20"><Phone size={32} /></a>
-                <button onClick={() => setShowContact(false)} className="bg-gray-100 text-gray-500 px-6 py-4 rounded-2xl font-black text-sm">بستن</button>
-             </div>
-          </div>
+        <a href={`tel:${job.phoneNumber}`} className="flex-[2] bg-green-600 text-white h-14 rounded-2xl font-black text-xl flex items-center justify-center gap-4 animate-in zoom-in shadow-xl tracking-widest">
+            <Phone size={24} /> {job.phoneNumber}
+        </a>
         )}
       </div>
     </div>
   );
 };
-
 export default JobDetails;
